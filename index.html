@@ -16,6 +16,11 @@
   <!-- Babel (JSX変換用) -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   
+  <!-- Firebase SDK (Compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  
   <style>
     @media print {
       @page {
@@ -331,13 +336,193 @@
         scrollbar-color: #666 #e0e0e0;
       }
     }
+    /* 同時編集用スタイル */
+    .connected-users-panel {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      padding: 12px;
+      z-index: 9999;
+      max-width: 280px;
+    }
+    .user-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 14px;
+    }
+    .sync-status {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .sync-status.connected { background: #dcfce7; color: #166534; }
+    .sync-status.disconnected { background: #fee2e2; color: #991b1b; }
+    .sync-status.syncing { background: #fef3c7; color: #92400e; }
+    .sync-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .sync-status.syncing .sync-dot { animation: pulse 1s infinite; }
+    .editing-cell {
+      outline: 3px solid var(--editor-color, #3b82f6) !important;
+      outline-offset: -1px;
+    }
+    .editor-label {
+      position: absolute;
+      top: -18px;
+      left: 0;
+      font-size: 10px;
+      padding: 1px 4px;
+      border-radius: 3px;
+      color: white;
+      white-space: nowrap;
+      z-index: 100;
+    }
   </style>
 </head>
 <body class="bg-gray-50 text-gray-800">
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useEffect, useRef } = React;
+    const { useState, useEffect, useRef, useCallback } = React;
+
+    // ① ここに、Firebaseコンソールからコピーした “値” を入れる
+    const FIREBASE_CONFIG = {
+      apiKey: "AIzaSyD9wXPT4uQ2SNfVf2lFEjqArBnaEmgslTI",
+      authDomain: "ss-room-auto-1f9b3.firebaseapp.com",
+      projectId: "ss-room-auto-1f9b3",
+      storageBucket: "ss-room-auto-1f9b3.firebasestorage.app",
+      messagingSenderId: "264240171286",
+      appId: "1:264240171286:web:45c9beba0e241ce064a837"
+    };
+
+    // ② Firestore を RTDBっぽく扱うアダプタ（database.ref().set/update/on を再現）
+    function makeFirestoreRtdbAdapter(docRef) {
+      const norm = (p) => (p || "").replace(/^\/+|\/+$/g, "");
+      const stripDataPrefix = (p) => {
+        const s = norm(p);
+        if (s === "" || s === "data") return "";
+        if (s.startsWith("data/")) return s.slice(5);
+        return s; // 念のため
+      };
+      const toDotPath = (p) => stripDataPrefix(p).split("/").filter(Boolean).join(".");
+
+      class Ref {
+        constructor(path) {
+          this.path = norm(path);
+          this._unsub = null;
+        }
+        on(event, cb) {
+          if (event !== "value") return;
+          // どのパスでも「共有ドキュメント全体」を監視（あなたの実装に合う）
+          this._unsub = docRef.onSnapshot((doc) => {
+            const raw = doc.data() || {};
+            // 初期化用のゴミを避けたい場合
+            const { __init, ...data } = raw;
+            cb({ val: () => data });
+          });
+        }
+        off() {
+          if (this._unsub) {
+            this._unsub();
+            this._unsub = null;
+          }
+        }
+        async set(value) {
+          const sub = stripDataPrefix(this.path);
+          if (!sub) {
+            // data 全体を置く（上書き事故を避けるため merge）
+            return docRef.set(value || {}, { merge: true });
+          }
+          const dot = toDotPath(this.path);
+          // updateはdocが無いと落ちるので set(merge) を使う
+          return docRef.set({ [dot]: value }, { merge: true });
+        }
+        async update(updates) {
+          // updates: { "data/xxx": value, ... } を dot に変換して update
+          const out = {};
+          for (const [k, v] of Object.entries(updates || {})) {
+            const dot = toDotPath(k);
+            out[dot] = v;
+          }
+          return docRef.update(out);
+        }
+        // 既存コードの handleRoomDrop で transaction が使われているため追加
+        transaction(updateFn) {
+          return docRef.get().then(doc => {
+            const raw = doc.data() || {};
+            const dot = toDotPath(this.path);
+            const current = dot ? raw[dot] : raw;
+            const next = updateFn(current);
+            if (next !== undefined) {
+              return dot ? docRef.update({ [dot]: next }) : docRef.set(next, { merge: true });
+            }
+          });
+        }
+      }
+
+      return {
+        ref: (path = "") => new Ref(path),
+      };
+    }
+
+    // ③ 初期化
+    let database = null;
+    let isFirebaseEnabled = false;
+
+    // ============================================
+    // ユーザー識別用ID生成
+    // ============================================
+    const generateUserId = () => {
+      let userId = localStorage.getItem('shortstay_user_id');
+      if (!userId) {
+        userId = 'user_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('shortstay_user_id', userId);
+      }
+      return userId;
+    };
+
+    const generateUserColor = (userId) => {
+      const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#3b82f6', '#8b5cf6', '#ec4899'];
+      let hash = 0;
+      for (let i = 0; i < userId.length; i++) {
+        hash = userId.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      return colors[Math.abs(hash) % colors.length];
+    };
+
+    const generateUserName = () => {
+      const adjectives = ['青い', '赤い', '緑の', '黄色い', '紫の', '白い', '黒い', 'オレンジ'];
+      const animals = ['パンダ', 'キツネ', 'タヌキ', 'ウサギ', 'クマ', 'ネコ', 'イヌ', 'トリ'];
+      return adjectives[Math.floor(Math.random() * adjectives.length)] + animals[Math.floor(Math.random() * animals.length)];
+    };
+
+    const CURRENT_USER_ID = generateUserId();
+    const CURRENT_USER_COLOR = generateUserColor(CURRENT_USER_ID);
+    const CURRENT_USER_NAME = localStorage.getItem('shortstay_user_name') || generateUserName();
+    localStorage.setItem('shortstay_user_name', CURRENT_USER_NAME);
 
     // ============================================
     // 設定: パスワードはここで変更可能
@@ -1008,8 +1193,8 @@
       const STORAGE_KEY_CUSTOM_ROWS = 'shortstay_custom_rows_v1';
       const STORAGE_KEY_CUSTOM_ROW_MEMOS = 'shortstay_custom_row_memos_v1';
 
-      // --- データ永続化層（将来のDB移行を見据えて分離） ---
-      // 将来ネット共有する際は、この中身をFirebaseなどの通信コードに書き換えるだけでOKになります
+      // --- データ永続化層（Firebase対応版） ---
+      // Firebaseが有効ならFirebaseを使用、無効ならlocalStorageを使用
       const db = {
         load: (key) => {
           try {
@@ -1020,9 +1205,21 @@
             return null;
           }
         },
-        save: (key, data) => localStorage.setItem(key, JSON.stringify(data)),
-        remove: (key) => localStorage.removeItem(key)
+        save: (key, data) => {
+          // ローカルストレージへの保存のみに役割を変更
+          localStorage.setItem(key, JSON.stringify(data));
+        },
+        remove: (key) => {
+          localStorage.removeItem(key);
+          if (isFirebaseEnabled && database) {
+            database.ref('data/' + key).remove().catch(e => console.error('Firebase remove error:', e));
+          }
+        }
       };
+
+      // 同時編集用のstate
+      const [connectedUsers, setConnectedUsers] = useState([]);
+      const [syncStatus, setSyncStatus] = useState(isFirebaseEnabled ? 'connected' : 'disconnected');
 
       useEffect(() => {
         const savedUsers = db.load(STORAGE_KEY_USERS);
@@ -1131,45 +1328,108 @@
         }
         
         setIsLoaded(true);
+
+        // Firebaseリアルタイムリスナーの設定
+        if (isFirebaseEnabled && database) {
+          // 接続ユーザーの管理
+          const presenceRef = database.ref('presence/' + CURRENT_USER_ID);
+          const connectedRef = database.ref('.info/connected');
+          
+          connectedRef.on('value', (snap) => {
+            if (snap.val() === true) {
+              setSyncStatus('connected');
+              presenceRef.set({
+                id: CURRENT_USER_ID,
+                name: CURRENT_USER_NAME,
+                color: CURRENT_USER_COLOR,
+                lastSeen: firebase.database.ServerValue.TIMESTAMP
+              });
+              presenceRef.onDisconnect().remove();
+            } else {
+              setSyncStatus('disconnected');
+            }
+          });
+
+          // 接続ユーザー一覧の監視
+          database.ref('presence').on('value', (snap) => {
+            const users = [];
+            snap.forEach((child) => {
+              users.push(child.val());
+            });
+            setConnectedUsers(users);
+          });
+
+          // データ変更のリアルタイム監視
+          const dataRef = database.ref('data');
+          dataRef.on('value', (snap) => {
+            const data = snap.val();
+            if (data) {
+              if (data[STORAGE_KEY_USERS]) setUsers(data[STORAGE_KEY_USERS]);
+              if (data[STORAGE_KEY_ALLOCATIONS]) setAllocations(data[STORAGE_KEY_ALLOCATIONS]);
+              if (data[STORAGE_KEY_MEMOS]) setMemos(data[STORAGE_KEY_MEMOS]);
+              if (data[STORAGE_KEY_ROOMS]) setRooms(data[STORAGE_KEY_ROOMS]);
+              if (data[STORAGE_KEY_TEMP_ROOMS]) setTempRooms(data[STORAGE_KEY_TEMP_ROOMS]);
+              if (data[STORAGE_KEY_MEAL_TICKETS]) setMealTickets(data[STORAGE_KEY_MEAL_TICKETS]);
+              if (data[STORAGE_KEY_CUSTOM_ROWS]) setCustomRows(data[STORAGE_KEY_CUSTOM_ROWS]);
+              if (data[STORAGE_KEY_CUSTOM_ROW_MEMOS]) setCustomRowMemos(data[STORAGE_KEY_CUSTOM_ROW_MEMOS]);
+            }
+          });
+
+          // クリーンアップ
+          return () => {
+            connectedRef.off();
+            database.ref('presence').off();
+            dataRef.off();
+            presenceRef.remove();
+          };
+        }
       }, []);
 
       useEffect(() => {
         if (!isLoaded) return;
+        // 変更を常にローカルストレージにバックアップ（オフライン用）
         db.save(STORAGE_KEY_USERS, users);
       }, [users, isLoaded]);
 
       useEffect(() => {
         if (!isLoaded) return;
+        // 変更を常にローカルストレージにバックアップ（オフライン用）
         db.save(STORAGE_KEY_ALLOCATIONS, allocations);
       }, [allocations, isLoaded]);
 
       useEffect(() => {
         if (!isLoaded) return;
+        // 変更を常にローカルストレージにバックアップ（オフライン用）
         db.save(STORAGE_KEY_MEMOS, memos);
       }, [memos, isLoaded]);
 
       useEffect(() => {
         if (!isLoaded) return;
+        // 変更を常にローカルストレージにバックアップ（オフライン用）
         db.save(STORAGE_KEY_ROOMS, rooms);
       }, [rooms, isLoaded]);
 
       useEffect(() => {
         if (!isLoaded) return;
+        // 変更を常にローカルストレージにバックアップ（オフライン用）
         db.save(STORAGE_KEY_TEMP_ROOMS, tempRooms);
       }, [tempRooms, isLoaded]);
 
       useEffect(() => {
         if (!isLoaded) return;
+        // 変更を常にローカルストレージにバックアップ（オフライン用）
         db.save(STORAGE_KEY_MEAL_TICKETS, mealTickets);
       }, [mealTickets, isLoaded]);
 
       useEffect(() => {
         if (!isLoaded) return;
+        // 変更を常にローカルストレージにバックアップ（オフライン用）
         db.save(STORAGE_KEY_CUSTOM_ROWS, customRows);
       }, [customRows, isLoaded]);
 
       useEffect(() => {
         if (!isLoaded) return;
+        // 変更を常にローカルストレージにバックアップ（オフライン用）
         db.save(STORAGE_KEY_CUSTOM_ROW_MEMOS, customRowMemos);
       }, [customRowMemos, isLoaded]);
 
@@ -1776,26 +2036,46 @@
           }
         }
 
-        // 移動実行
-        const newAllocations = { ...allocations };
-        
-        datesToMove.forEach(moveDate => {
-          const fromKey = `${moveDate}-${fromRoomId}`;
-          if (newAllocations[fromKey]) {
-            newAllocations[fromKey] = newAllocations[fromKey].filter(id => id !== userId);
-            if (newAllocations[fromKey].length === 0) {
-              delete newAllocations[fromKey];
+        if (isFirebaseEnabled && database) {
+          // Firebaseモード：トランザクションで安全にallocationsを更新
+          const allocationsRef = database.ref('data/' + STORAGE_KEY_ALLOCATIONS);
+          allocationsRef.transaction(currentAllocations => {
+            if (!currentAllocations) currentAllocations = {};
+            datesToMove.forEach(moveDate => {
+              const fromKey = `${moveDate}-${fromRoomId}`;
+              if (currentAllocations[fromKey]) {
+                currentAllocations[fromKey] = currentAllocations[fromKey].filter(id => id !== userId);
+                if (currentAllocations[fromKey].length === 0) {
+                  delete currentAllocations[fromKey];
+                }
+              }
+              const targetKey = `${moveDate}-${targetRoomId}`;
+              const currentTarget = currentAllocations[targetKey] || [];
+              if (!currentTarget.includes(userId)) {
+                currentAllocations[targetKey] = [...currentTarget, userId];
+              }
+            });
+            return currentAllocations;
+          });
+        } else {
+          // ローカルモード
+          const newAllocations = { ...allocations };
+          datesToMove.forEach(moveDate => {
+            const fromKey = `${moveDate}-${fromRoomId}`;
+            if (newAllocations[fromKey]) {
+              newAllocations[fromKey] = newAllocations[fromKey].filter(id => id !== userId);
+              if (newAllocations[fromKey].length === 0) {
+                delete newAllocations[fromKey];
+              }
             }
-          }
-
-          const targetKey = `${moveDate}-${targetRoomId}`;
-          const currentTarget = newAllocations[targetKey] || [];
-          if (!currentTarget.includes(userId)) {
-            newAllocations[targetKey] = [...currentTarget, userId];
-          }
-        });
-
-        setAllocations(newAllocations);
+            const targetKey = `${moveDate}-${targetRoomId}`;
+            const currentTarget = newAllocations[targetKey] || [];
+            if (!currentTarget.includes(userId)) {
+              newAllocations[targetKey] = [...currentTarget, userId];
+            }
+          });
+          setAllocations(newAllocations);
+        }
         closeContextMenu();
       };
 
@@ -1898,28 +2178,51 @@
           }
         }
 
-        // 移動実行
-        const newAllocations = { ...allocations };
-        
-        datesToMove.forEach(moveDate => {
-          // 元の部屋から削除
-          const fromKey = `${moveDate}-${fromRoomId}`;
-          if (newAllocations[fromKey]) {
-            newAllocations[fromKey] = newAllocations[fromKey].filter(id => id !== userId);
-            if (newAllocations[fromKey].length === 0) {
-              delete newAllocations[fromKey];
+        if (isFirebaseEnabled && database) {
+          // Firebaseモード：トランザクションで安全にallocationsを更新
+          const allocationsRef = database.ref('data/' + STORAGE_KEY_ALLOCATIONS);
+          allocationsRef.transaction(currentAllocations => {
+            if (currentAllocations === null) {
+              currentAllocations = {};
             }
-          }
-
-          // 新しい部屋に追加
-          const targetKey = `${moveDate}-${roomId}`;
-          const currentTarget = newAllocations[targetKey] || [];
-          if (!currentTarget.includes(userId)) {
-            newAllocations[targetKey] = [...currentTarget, userId];
-          }
-        });
-
-        setAllocations(newAllocations);
+            // トランザクション内で最新のデータ(currentAllocations)に対して移動処理を行う
+            datesToMove.forEach(moveDate => {
+              // 元の部屋から削除
+              const fromKey = `${moveDate}-${fromRoomId}`;
+              if (currentAllocations[fromKey]) {
+                currentAllocations[fromKey] = currentAllocations[fromKey].filter(id => id !== userId);
+                if (currentAllocations[fromKey].length === 0) {
+                  delete currentAllocations[fromKey];
+                }
+              }
+              // 新しい部屋に追加
+              const targetKey = `${moveDate}-${roomId}`;
+              const currentTarget = currentAllocations[targetKey] || [];
+              if (!currentTarget.includes(userId)) {
+                currentAllocations[targetKey] = [...currentTarget, userId];
+              }
+            });
+            return currentAllocations; // 更新後のデータを返す
+          });
+        } else {
+          // ローカルモード：直接stateを更新
+          const newAllocations = { ...allocations };
+          datesToMove.forEach(moveDate => {
+            const fromKey = `${moveDate}-${fromRoomId}`;
+            if (newAllocations[fromKey]) {
+              newAllocations[fromKey] = newAllocations[fromKey].filter(id => id !== userId);
+              if (newAllocations[fromKey].length === 0) {
+                delete newAllocations[fromKey];
+              }
+            }
+            const targetKey = `${moveDate}-${roomId}`;
+            const currentTarget = newAllocations[targetKey] || [];
+            if (!currentTarget.includes(userId)) {
+              newAllocations[targetKey] = [...currentTarget, userId];
+            }
+          });
+          setAllocations(newAllocations);
+        }
         setDragUser(null);
       };
 
@@ -1966,7 +2269,11 @@
         newSchedule[targetDate] = targetDay;
 
         user.schedule = newSchedule;
-        setUsers(newUsers);
+        if (isFirebaseEnabled && database) {
+          database.ref('data/' + STORAGE_KEY_USERS).set(newUsers);
+        } else {
+          setUsers(newUsers);
+        }
         setDragItem(null);
       };
 
@@ -2196,15 +2503,27 @@
           newPeriods = periods.map(p => ({ start: p[0], end: p[p.length-1], userId: savedUser.id }));
         }
         
-        setUsers(updatedUsers);
-        
-        // 保存後に自動割り振りを実行
-        if (savedUser && savedUser.stayDates.length > 0) {
-          // updatedUsersを使って割り振り（新規ユーザーも含める）
-          setTimeout(() => {
+        if (isFirebaseEnabled && database) {
+          // Firebaseモード：usersとallocationsをアトミックに更新
+          const newAllocations = (savedUser && savedUser.stayDates.length > 0)
+            ? allocateSingleUser(savedUser, allocations, updatedUsers)
+            : allocations;
+
+          const updates = {};
+          updates[`data/${STORAGE_KEY_USERS}`] = updatedUsers;
+          updates[`data/${STORAGE_KEY_ALLOCATIONS}`] = newAllocations;
+
+          database.ref().update(updates).catch((error) => {
+            console.error('ユーザーと割り当ての更新に失敗しました: ', error);
+            // ここでエラー処理（例：ユーザーに通知）を行うことができます
+          });
+        } else {
+          // ローカルモード：stateを直接更新
+          setUsers(updatedUsers);
+          if (savedUser && savedUser.stayDates.length > 0) {
             const newAllocations = allocateSingleUser(savedUser, allocations, updatedUsers);
             setAllocations(newAllocations);
-          }, 0);
+          }
         }
         
         setNewUserData({ 
@@ -2350,12 +2669,22 @@
         if (hasAllocations) {
           // 利用記録がある場合はアーカイブ（非表示）にする
           if(window.confirm('この利用者をリストから非表示にしますか？\n（カレンダー上の過去の利用記録は残ります）')) {
-            setUsers(users.map(u => u.id === id ? { ...u, isArchived: true } : u));
+            const newUsers = users.map(u => u.id === id ? { ...u, isArchived: true } : u);
+            if (isFirebaseEnabled && database) {
+              database.ref('data/' + STORAGE_KEY_USERS).set(newUsers);
+            } else {
+              setUsers(newUsers);
+            }
           }
         } else {
           // 利用記録がない場合は完全削除
           if(window.confirm('この利用者を削除しますか？')) {
-            setUsers(users.filter(u => u.id !== id));
+            const newUsers = users.filter(u => u.id !== id);
+            if (isFirebaseEnabled && database) {
+              database.ref('data/' + STORAGE_KEY_USERS).set(newUsers);
+            } else {
+              setUsers(newUsers);
+            }
           }
         }
       };
@@ -2371,7 +2700,11 @@
           schedule: calculateInitialSchedule(user.stayDates, user.bathType || '')
         }));
         
-        setUsers(updatedUsers);
+        if (isFirebaseEnabled && database) {
+          database.ref('data/' + STORAGE_KEY_USERS).set(updatedUsers);
+        } else {
+          setUsers(updatedUsers);
+        }
         alert('全利用者のスケジュールを再計算しました！');
       };
 
@@ -2566,23 +2899,46 @@
           });
         });
 
-        setUsers(updatedUsers);
-        setAllocations(newAllocations);
+        if (isFirebaseEnabled && database) {
+          const updates = {};
+          updates[`data/${STORAGE_KEY_USERS}`] = updatedUsers;
+          updates[`data/${STORAGE_KEY_ALLOCATIONS}`] = newAllocations;
+          database.ref().update(updates).catch(e => {
+            console.error('全データ再計算の更新に失敗', e);
+          });
+        } else {
+          setUsers(updatedUsers);
+          setAllocations(newAllocations);
+        }
         alert('全データを再計算しました！\n（部屋割り＋入浴スケジュール）');
       };
 
       const handleMemoChange = (dateStr, roomId, value) => {
-        setMemos(prev => ({ ...prev, [`${dateStr}-${roomId}`]: value }));
+        const key = `${dateStr}-${roomId}`;
+        if (isFirebaseEnabled && database) {
+          // Firebaseが有効な場合は、特定のメモだけを更新する
+          database.ref(`data/${STORAGE_KEY_MEMOS}/${key}`).set(value);
+        } else {
+          // ローカルモードでは、直接stateを更新する
+          setMemos(prev => ({ ...prev, [key]: value }));
+        }
       };
 
       const clearAllData = () => {
         if(window.confirm('全てのデータを削除して初期状態に戻しますか？')) {
           db.remove(STORAGE_KEY_USERS);
-          db.remove(STORAGE_KEY_ALLOCATIONS);
-          db.remove(STORAGE_KEY_MEMOS);
-          setUsers(generateSampleUsers(currentMonth));
-          setAllocations({});
-          setMemos({});
+          db.remove(STORAGE_KEY_ALLOCATIONS); // ローカルはクリア
+          db.remove(STORAGE_KEY_MEMOS); // ローカルはクリア
+          if (isFirebaseEnabled && database) {
+            // Firebase上のデータもクリア
+            database.ref('data').set({
+              [STORAGE_KEY_USERS]: generateSampleUsers(currentMonth),
+              [STORAGE_KEY_ALLOCATIONS]: {},
+              [STORAGE_KEY_MEMOS]: {},
+            });
+          }
+          // stateを初期化（これはFirebaseのonSnapshotでも更新される）
+          setUsers(generateSampleUsers(currentMonth)); setAllocations({}); setMemos({});
         }
       };
 
@@ -3195,7 +3551,11 @@
                   </button>
                   <button
                     onClick={() => {
-                      setRooms(editingRooms);
+                      if (isFirebaseEnabled && database) {
+                        database.ref('data/' + STORAGE_KEY_ROOMS).set(editingRooms);
+                      } else {
+                        setRooms(editingRooms);
+                      }
                       setShowRoomEditor(false);
                     }}
                     className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 rounded font-bold"
@@ -3631,10 +3991,14 @@
                     onClick={() => {
                       // 保存
                       const ticketKey = `${editingMealTicket.userId}_${editingMealTicket.startDate}_${editingMealTicket.endDate}`;
-                      setMealTickets(prev => ({
-                        ...prev,
-                        [ticketKey]: editingMealTicket
-                      }));
+                      if (isFirebaseEnabled && database) {
+                        database.ref(`data/${STORAGE_KEY_MEAL_TICKETS}/${ticketKey}`).set(editingMealTicket);
+                      } else {
+                        setMealTickets(prev => ({
+                          ...prev,
+                          [ticketKey]: editingMealTicket
+                        }));
+                      }
                       setShowMealTicketModal(false);
                       setEditingMealTicket(null);
                       alert('食事伝票を保存しました');
@@ -4733,12 +5097,20 @@
                                                   // mustBath以外は削除可能
                                                   setUsers(users.map(u => {
                                                     if (u.id === userId) {
-                                                      const newSchedule = { ...u.schedule };
-                                                      newSchedule[dateStr] = { ...newSchedule[dateStr], bath: false };
-                                                      return { ...u, schedule: newSchedule };
+                                                  const updatedUser = { ...u, schedule: { ...u.schedule } };
+                                                  updatedUser.schedule[dateStr] = { ...updatedUser.schedule[dateStr], bath: false };
+                                                  return updatedUser;
                                                     }
                                                     return u;
-                                                  }));
+                                              })); // ローカルの即時反映用
+                                              if (isFirebaseEnabled && database) {
+                                                // Firebaseに直接書き込み
+                                                const userIndex = users.findIndex(u => u.id === userId);
+                                                if (userIndex !== -1) {
+                                                  const path = `data/${STORAGE_KEY_USERS}/${userIndex}/schedule/${dateStr}/bath`;
+                                                  database.ref(path).set(false);
+                                                }
+                                              }
                                                 }
                                               }}
                                               className={`text-2xl cursor-pointer hover:opacity-80 drop-shadow-md rounded ${daySchedule.mustBath ? 'cursor-grab' : 'hover:bg-red-100'}`}
@@ -4747,14 +5119,20 @@
                                             <button
                                               onClick={(e) => {
                                                 e.stopPropagation();
-                                                setUsers(users.map(u => {
+                                                const newUsers = users.map(u => {
                                                   if (u.id === userId) {
-                                                    const newSchedule = { ...u.schedule };
-                                                    newSchedule[dateStr] = { ...newSchedule[dateStr], bath: true };
-                                                    return { ...u, schedule: newSchedule };
+                                                    const updatedUser = { ...u, schedule: { ...u.schedule } };
+                                                    updatedUser.schedule[dateStr] = { ...updatedUser.schedule[dateStr], bath: true };
+                                                    return updatedUser;
                                                   }
                                                   return u;
-                                                }));
+                                                });
+                                                if (isFirebaseEnabled && database) {
+                                                  // users全体を更新
+                                                  database.ref('data/' + STORAGE_KEY_USERS).set(newUsers);
+                                                } else {
+                                                  setUsers(newUsers);
+                                                }
                                               }}
                                               className="text-[10px] text-blue-400 hover:text-blue-600 hover:bg-blue-100 rounded px-1 opacity-0 group-hover/cell:opacity-100 transition-opacity"
                                               title="入浴を追加"
@@ -4767,14 +5145,20 @@
                                               onDragEnd={handleDragEnd}
                                               onClick={(e) => {
                                                 e.stopPropagation();
-                                                setUsers(users.map(u => {
+                                                const newUsers = users.map(u => {
                                                   if (u.id === userId) {
-                                                    const newSchedule = { ...u.schedule };
-                                                    newSchedule[dateStr] = { ...newSchedule[dateStr], linen: false };
-                                                    return { ...u, schedule: newSchedule };
+                                                    const updatedUser = { ...u, schedule: { ...u.schedule } };
+                                                    updatedUser.schedule[dateStr] = { ...updatedUser.schedule[dateStr], linen: false };
+                                                    return updatedUser;
                                                   }
                                                   return u;
-                                                }));
+                                                });
+                                                if (isFirebaseEnabled && database) {
+                                                  // users全体を更新
+                                                  database.ref('data/' + STORAGE_KEY_USERS).set(newUsers);
+                                                } else {
+                                                  setUsers(newUsers);
+                                                }
                                               }}
                                               className="text-2xl cursor-pointer hover:opacity-80 drop-shadow-md hover:bg-red-100 rounded" 
                                               title="リネン交換（クリックで削除/ドラッグで移動）">🛏️</span>
@@ -4782,14 +5166,19 @@
                                             <button
                                               onClick={(e) => {
                                                 e.stopPropagation();
-                                                setUsers(users.map(u => {
+                                                const newUsers = users.map(u => {
                                                   if (u.id === userId) {
-                                                    const newSchedule = { ...u.schedule };
-                                                    newSchedule[dateStr] = { ...newSchedule[dateStr], linen: true };
-                                                    return { ...u, schedule: newSchedule };
+                                                    const updatedUser = { ...u, schedule: { ...u.schedule } };
+                                                    updatedUser.schedule[dateStr] = { ...updatedUser.schedule[dateStr], linen: true };
+                                                    return updatedUser;
                                                   }
                                                   return u;
-                                                }));
+                                                });
+                                                if (isFirebaseEnabled && database) {
+                                                  database.ref('data/' + STORAGE_KEY_USERS).set(newUsers);
+                                                } else {
+                                                  setUsers(newUsers);
+                                                }
                                               }}
                                               className="text-[10px] text-green-400 hover:text-green-600 hover:bg-green-100 rounded px-1 opacity-0 group-hover/cell:opacity-100 transition-opacity"
                                               title="リネン交換を追加"
@@ -5003,7 +5392,12 @@
                           <button
                             onClick={() => {
                               if (window.confirm(`「${customRow.name}」を削除しますか？`)) {
-                                setCustomRows(customRows.filter(r => r.id !== customRow.id));
+                                const newRows = customRows.filter(r => r.id !== customRow.id);
+                                if (isFirebaseEnabled && database) {
+                                  database.ref('data/' + STORAGE_KEY_CUSTOM_ROWS).set(newRows);
+                                } else {
+                                  setCustomRows(newRows);
+                                }
                               }
                             }}
                             className="text-xs text-red-500 hover:text-red-700 print-hidden"
@@ -5029,13 +5423,25 @@
                             <div className="flex flex-col h-full">
                               <MemoInput
                                 value={customRowMemos[memoKey1] || ''}
-                                onSave={(val) => setCustomRowMemos(prev => ({...prev, [memoKey1]: val}))}
+                                onSave={(val) => {
+                                  if (isFirebaseEnabled && database) {
+                                    database.ref(`data/${STORAGE_KEY_CUSTOM_ROW_MEMOS}/${memoKey1}`).set(val);
+                                  } else {
+                                    setCustomRowMemos(prev => ({...prev, [memoKey1]: val}));
+                                  }
+                                }}
                                 className="w-full flex-1 p-0.5 text-xs bg-white outline-none text-gray-800 placeholder-gray-300 focus:bg-yellow-50 border-b border-gray-200"
                                 placeholder=""
                               />
                               <MemoInput
                                 value={customRowMemos[memoKey2] || ''}
-                                onSave={(val) => setCustomRowMemos(prev => ({...prev, [memoKey2]: val}))}
+                                onSave={(val) => {
+                                  if (isFirebaseEnabled && database) {
+                                    database.ref(`data/${STORAGE_KEY_CUSTOM_ROW_MEMOS}/${memoKey2}`).set(val);
+                                  } else {
+                                    setCustomRowMemos(prev => ({...prev, [memoKey2]: val}));
+                                  }
+                                }}
                                 className="w-full flex-1 p-0.5 text-xs bg-white outline-none text-gray-800 placeholder-gray-300 focus:bg-yellow-50"
                                 placeholder=""
                               />
@@ -5057,7 +5463,12 @@
                           const name = window.prompt('追加する行の名前を入力してください', '');
                           if (name && name.trim()) {
                             const newId = `custom_${Date.now()}`;
-                            setCustomRows([...customRows, { id: newId, name: name.trim() }]);
+                            const newRows = [...customRows, { id: newId, name: name.trim() }];
+                            if (isFirebaseEnabled && database) {
+                              database.ref('data/' + STORAGE_KEY_CUSTOM_ROWS).set(newRows);
+                            } else {
+                              setCustomRows(newRows);
+                            }
                           }
                         }}
                         className="w-full text-center text-teal-600 hover:text-teal-800 text-sm font-bold py-1"
@@ -5132,9 +5543,14 @@
                               onBlur={(e) => {
                                 const newName = e.target.value.trim();
                                 if (newName) {
-                                  setTempRooms(prev => prev.map(r => 
+                                  const newTempRooms = tempRooms.map(r => 
                                     r.id === tempRoom.id ? { ...r, name: newName } : r
-                                  ));
+                                  );
+                                  if (isFirebaseEnabled && database) {
+                                    database.ref('data/' + STORAGE_KEY_TEMP_ROOMS).set(newTempRooms);
+                                  } else {
+                                    setTempRooms(newTempRooms);
+                                  }
                                 }
                                 setEditingTempRoom(null);
                               }}
@@ -5172,8 +5588,16 @@
                                       delete newAllocations[key];
                                     }
                                   });
-                                  setAllocations(newAllocations);
-                                  setTempRooms(prev => prev.filter(r => r.id !== tempRoom.id));
+                                  const newTempRooms = tempRooms.filter(r => r.id !== tempRoom.id);
+                                  if (isFirebaseEnabled && database) {
+                                    database.ref().update({
+                                      [`data/${STORAGE_KEY_ALLOCATIONS}`]: newAllocations,
+                                      [`data/${STORAGE_KEY_TEMP_ROOMS}`]: newTempRooms,
+                                    });
+                                  } else {
+                                    setAllocations(newAllocations);
+                                    setTempRooms(newTempRooms);
+                                  }
                                 }
                               }}
                               className="text-xs text-red-500 hover:text-red-700 mt-1"
@@ -5192,7 +5616,12 @@
                                   return;
                                 }
                                 const newId = `${TEMP_ROOM_PREFIX}${Date.now()}`;
-                                setTempRooms(prev => [...prev, { id: newId, name: tempRoom.name, month: nextMonthStr }]);
+                                const newTempRooms = [...tempRooms, { id: newId, name: tempRoom.name, month: nextMonthStr }];
+                                if (isFirebaseEnabled && database) {
+                                  database.ref('data/' + STORAGE_KEY_TEMP_ROOMS).set(newTempRooms);
+                                } else {
+                                  setTempRooms(newTempRooms);
+                                }
                                 alert(`「${tempRoom.name}」を${nextMonth.getMonth() + 1}月にコピーしました`);
                               }}
                               className="text-xs text-blue-500 hover:text-blue-700 mt-1"
@@ -5383,7 +5812,12 @@
                           const newId = `${TEMP_ROOM_PREFIX}${Date.now()}`;
                           const monthStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
                           const roomNumber = currentMonthTempRooms.length + 1;
-                          setTempRooms(prev => [...prev, { id: newId, name: `空床${roomNumber}`, month: monthStr }]);
+                          const newTempRooms = [...tempRooms, { id: newId, name: `空床${roomNumber}`, month: monthStr }];
+                          if (isFirebaseEnabled && database) {
+                            database.ref('data/' + STORAGE_KEY_TEMP_ROOMS).set(newTempRooms);
+                          } else {
+                            setTempRooms(newTempRooms);
+                          }
                         }}
                         className="bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 rounded font-bold text-xs"
                       >
@@ -5400,6 +5834,37 @@
         </div>
         
         {/* 右クリックコンテキストメニュー（モーダル） */}
+        {/* 同時編集: 接続ステータス表示 */}
+        {isFirebaseEnabled && (
+          <div className={`sync-status ${syncStatus} print-hidden`}>
+            <span className="sync-dot"></span>
+            <span>{syncStatus === 'connected' ? '同期中' : syncStatus === 'syncing' ? '同期中...' : 'オフライン'}</span>
+          </div>
+        )}
+
+        {/* 同時編集: 接続ユーザーパネル */}
+        {isFirebaseEnabled && connectedUsers.length > 0 && (
+          <div className="connected-users-panel print-hidden">
+            <div className="text-xs font-bold text-gray-500 mb-2">接続中 ({connectedUsers.length}人)</div>
+            <div className="flex flex-wrap gap-2">
+              {connectedUsers.map(user => (
+                <div key={user.id} className="flex items-center gap-2" title={user.name}>
+                  <div 
+                    className="user-avatar" 
+                    style={{ backgroundColor: user.color }}
+                  >
+                    {user.name.charAt(0)}
+                  </div>
+                  <span className="text-xs text-gray-600">
+                    {user.name}
+                    {user.id === CURRENT_USER_ID && ' (自分)'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {contextMenu && (
           <>
             <div 
@@ -5435,14 +5900,19 @@
                     return isFixed ? (
                       <button
                         onClick={() => {
-                          setUsers(users.map(u => {
+                          const newUsers = users.map(u => {
                             if (u.id === contextMenu.userId) {
                               const newFixedRooms = { ...u.fixedRooms };
                               delete newFixedRooms[periodKey];
                               return { ...u, fixedRooms: newFixedRooms };
                             }
                             return u;
-                          }));
+                          });
+                          if (isFirebaseEnabled && database) {
+                            database.ref('data/' + STORAGE_KEY_USERS).set(newUsers);
+                          } else {
+                            setUsers(newUsers);
+                          }
                           closeContextMenu();
                           alert(`${user.name}の部屋固定を解除しました\n（${periodLabel}）`);
                         }}
@@ -5456,13 +5926,18 @@
                     ) : (
                       <button
                         onClick={() => {
-                          setUsers(users.map(u => {
+                          const newUsers = users.map(u => {
                             if (u.id === contextMenu.userId) {
                               const newFixedRooms = { ...(u.fixedRooms || {}), [periodKey]: contextMenu.fromRoomId };
                               return { ...u, fixedRooms: newFixedRooms };
                             }
                             return u;
-                          }));
+                          });
+                          if (isFirebaseEnabled && database) {
+                            database.ref('data/' + STORAGE_KEY_USERS).set(newUsers);
+                          } else {
+                            setUsers(newUsers);
+                          }
                           closeContextMenu();
                           alert(`${user.name}を${contextMenu.fromRoomId}号室に固定しました\n（${periodLabel}）`);
                         }}
@@ -5561,16 +6036,19 @@
         </>
       );
     }
-
     // ============================================
     // アプリのルート
     // ============================================
     function App() {
       const [isAuthenticated, setIsAuthenticated] = useState(false);
       const [isChecking, setIsChecking] = useState(true);
+      
+      // Firebase接続状態管理
+      const [isFirebaseReady, setIsFirebaseReady] = useState(false);
+      const [firebaseError, setFirebaseError] = useState(null);
 
+      // 1. アプリのセッションチェック（パスワード認証）
       useEffect(() => {
-        // セッションチェック
         const sessionStr = localStorage.getItem('shortstay_session');
         if (sessionStr) {
           try {
@@ -5585,6 +6063,62 @@
           }
         }
         setIsChecking(false);
+      }, []);
+
+      // 2. Firebase初期化と認証監視
+      useEffect(() => {
+        let unsubscribe = null;
+
+        const initFirebase = async () => {
+          try {
+            // Firebaseアプリの初期化（二重初期化防止）
+            if (!firebase.apps.length) {
+              firebase.initializeApp(FIREBASE_CONFIG);
+            }
+
+            // 認証状態の監視
+            unsubscribe = firebase.auth().onAuthStateChanged(async (user) => {
+              if (user) {
+                // ログイン済みの場合、Firestoreに接続
+                try {
+                  const fs = firebase.firestore();
+                  const docRef = fs.collection("ss-room-auto").doc("shared");
+                  
+                  // ドキュメントの存在確認を兼ねて初期化（権限があれば成功する）
+                  // ※ルールで auth != null が必要なので、ここで行うのが正解
+                  await docRef.set({ __init: true }, { merge: true });
+
+                  // アダプタの初期化（グローバル変数にセット）
+                  database = makeFirestoreRtdbAdapter(docRef);
+                  isFirebaseEnabled = true;
+                  
+                  console.log("Firestore接続成功（RTDB互換アダプタ）");
+                  setIsFirebaseReady(true);
+                } catch (err) {
+                  console.error("Firestore接続エラー:", err);
+                  setFirebaseError("データベースへの接続に失敗しました: " + err.message);
+                }
+              } else {
+                // 未ログインの場合、匿名ログインを実行
+                console.log("匿名ログインを実行中...");
+                await firebase.auth().signInAnonymously().catch(err => {
+                  console.error("匿名ログイン失敗:", err);
+                  setFirebaseError("ログインに失敗しました: " + err.message);
+                });
+                // ログイン成功すれば onAuthStateChanged が再度呼ばれるため、ここでは待機
+              }
+            });
+          } catch (e) {
+            console.error("Firebase初期化エラー:", e);
+            setFirebaseError("Firebase初期化エラー: " + e.message);
+          }
+        };
+
+        initFirebase();
+
+        return () => {
+          if (unsubscribe) unsubscribe();
+        };
       }, []);
 
       const handleLogout = () => {
@@ -5602,6 +6136,36 @@
 
       if (!isAuthenticated) {
         return <LoginScreen onLogin={() => setIsAuthenticated(true)} />;
+      }
+
+      // アプリ認証後、Firebase準備待ち
+      if (firebaseError) {
+        return (
+          <div className="min-h-screen flex items-center justify-center bg-gray-50">
+            <div className="bg-white p-6 rounded shadow-lg border-l-4 border-red-500 max-w-md">
+              <h3 className="text-red-600 font-bold mb-2">エラーが発生しました</h3>
+              <p className="text-gray-600 text-sm">{firebaseError}</p>
+              <button 
+                onClick={() => window.location.reload()}
+                className="mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded text-sm font-bold"
+              >
+                再読み込み
+              </button>
+            </div>
+          </div>
+        );
+      }
+
+      if (!isFirebaseReady) {
+        return (
+          <div className="min-h-screen flex items-center justify-center bg-gray-50">
+            <div className="flex flex-col items-center gap-3">
+              <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+              <div className="text-blue-600 font-bold">データベース接続中...</div>
+              <div className="text-xs text-gray-400">認証情報を確認しています</div>
+            </div>
+          </div>
+        );
       }
 
       return <ShortStayAllocator onLogout={handleLogout} />;
