@@ -935,56 +935,56 @@
     // ============================================
     // 認証コンポーネント
     // ============================================
-    function LoginScreen({ onLogin }) {
+    function LoginScreen() {
+      const [email, setEmail] = useState('');
       const [password, setPassword] = useState('');
       const [error, setError] = useState('');
       const [isLoading, setIsLoading] = useState(false);
-      const [showResetConfirm, setShowResetConfirm] = useState(false);
-      const [resetMessage, setResetMessage] = useState('');
 
-      const handleSubmit = (e) => {
+      const handleSubmit = async (e) => {
         e.preventDefault();
         setIsLoading(true);
         setError('');
 
-        // 簡易的な遅延（ブルートフォース対策）
-        setTimeout(() => {
-          if (password === getPassword()) {
-            // セッション情報を保存
-            const session = {
-              authenticated: true,
-              timestamp: Date.now(),
-              expires: Date.now() + APP_CONFIG.sessionDuration
-            };
-            localStorage.setItem('shortstay_session', JSON.stringify(session));
-            onLogin();
-          } else {
-            setError('パスワードが正しくありません');
-          }
+        try {
+          await firebase.auth().signInWithEmailAndPassword(email, password);
+        } catch (err) {
+          console.error("Login error:", err);
+          let msg = 'ログインに失敗しました';
+          if (err.code === 'auth/invalid-email') msg = 'メールアドレスの形式が正しくありません';
+          if (err.code === 'auth/user-disabled') msg = 'このユーザーは無効化されています';
+          if (err.code === 'auth/user-not-found') msg = 'ユーザーが見つかりません';
+          if (err.code === 'auth/wrong-password') msg = 'パスワードが間違っています';
+          if (err.code === 'auth/invalid-credential') msg = '認証情報が正しくありません';
+          setError(msg);
           setIsLoading(false);
-        }, 500);
-      };
-
-      const handleResetPassword = () => {
-        localStorage.removeItem('shortstay_password');
-        setShowResetConfirm(false);
-        setResetMessage('パスワードを初期状態（keijuen2025）に戻しました');
-        setPassword('');
+        }
       };
 
       return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
+        <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md">
             <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
-                <Lock size={32} className="text-blue-600" />
-              </div>
               <h1 className="text-2xl font-bold text-gray-800">{APP_CONFIG.facilityName}</h1>
-              <p className="text-gray-500 mt-2">部屋割管理システム</p>
+              <p className="text-gray-500 mt-2">ログイン</p>
             </div>
 
-            <form onSubmit={handleSubmit}>
-              <div className="mb-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  メールアドレス
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
+                  placeholder="name@example.com"
+                  required
+                />
+              </div>
+
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   パスワード
                 </label>
@@ -992,70 +992,30 @@
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
                   placeholder="パスワードを入力"
-                  autoFocus
+                  required
                 />
-                {error && (
-                  <p className="mt-2 text-sm text-red-600">{error}</p>
-                )}
-                {resetMessage && (
-                  <p className="mt-2 text-sm text-green-600">{resetMessage}</p>
-                )}
               </div>
+
+              {error && (
+                <div className="text-red-500 text-sm font-bold bg-red-50 p-3 rounded">
+                  {error}
+                </div>
+              )}
 
               <button
                 type="submit"
-                disabled={isLoading || !password}
+                disabled={isLoading}
                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
               >
                 {isLoading ? (
-                  <>
-                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    確認中...
-                  </>
+                  'ログイン中...'
                 ) : (
                   'ログイン'
                 )}
               </button>
             </form>
-
-            <div className="mt-4 text-center">
-              <button
-                onClick={() => setShowResetConfirm(true)}
-                className="text-sm text-gray-500 hover:text-blue-600 underline"
-              >
-                パスワードを忘れた場合
-              </button>
-            </div>
-
-            {showResetConfirm && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                <div className="bg-white rounded-lg shadow-xl p-6 w-80 max-w-[90vw]">
-                  <h3 className="font-bold text-gray-800 mb-3">パスワードをリセット</h3>
-                  <p className="text-sm text-gray-600 mb-4">
-                    パスワードを初期状態（keijuen2025）に戻しますか？
-                  </p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setShowResetConfirm(false)}
-                      className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 rounded font-bold"
-                    >
-                      キャンセル
-                    </button>
-                    <button
-                      onClick={handleResetPassword}
-                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded font-bold"
-                    >
-                      リセット
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
 
             <p className="mt-6 text-center text-xs text-gray-400">
               © 2025 ShortStay Room Allocation System
@@ -6013,25 +5973,7 @@
       const [isFirebaseReady, setIsFirebaseReady] = useState(false);
       const [firebaseError, setFirebaseError] = useState(null);
 
-      // 1. アプリのセッションチェック（パスワード認証）
-      useEffect(() => {
-        const sessionStr = localStorage.getItem('shortstay_session');
-        if (sessionStr) {
-          try {
-            const session = JSON.parse(sessionStr);
-            if (session.authenticated && session.expires > Date.now()) {
-              setIsAuthenticated(true);
-            } else {
-              localStorage.removeItem('shortstay_session');
-            }
-          } catch (e) {
-            localStorage.removeItem('shortstay_session');
-          }
-        }
-        setIsChecking(false);
-      }, []);
-
-      // 2. Firebase初期化と認証監視
+      // Firebase初期化と認証監視
       useEffect(() => {
         let unsubscribe = null;
 
@@ -6045,6 +5987,7 @@
             // 認証状態の監視
             unsubscribe = firebase.auth().onAuthStateChanged(async (user) => {
               if (user) {
+                setIsAuthenticated(true);
                 // ログイン済みの場合、Firestoreに接続
                 try {
                   const fs = firebase.firestore();
@@ -6065,18 +6008,16 @@
                   setFirebaseError("データベースへの接続に失敗しました: " + err.message);
                 }
               } else {
-                // 未ログインの場合、匿名ログインを実行
-                console.log("匿名ログインを実行中...");
-                await firebase.auth().signInAnonymously().catch(err => {
-                  console.error("匿名ログイン失敗:", err);
-                  setFirebaseError("ログインに失敗しました: " + err.message);
-                });
-                // ログイン成功すれば onAuthStateChanged が再度呼ばれるため、ここでは待機
+                // 未ログイン
+                setIsAuthenticated(false);
+                setIsFirebaseReady(false);
               }
+              setIsChecking(false);
             });
           } catch (e) {
             console.error("Firebase初期化エラー:", e);
             setFirebaseError("Firebase初期化エラー: " + e.message);
+            setIsChecking(false);
           }
         };
 
@@ -6088,8 +6029,9 @@
       }, []);
 
       const handleLogout = () => {
-        localStorage.removeItem('shortstay_session');
-        setIsAuthenticated(false);
+        firebase.auth().signOut().then(() => {
+          setIsAuthenticated(false);
+        });
       };
 
       if (isChecking) {
@@ -6101,7 +6043,7 @@
       }
 
       if (!isAuthenticated) {
-        return <LoginScreen onLogin={() => setIsAuthenticated(true)} />;
+        return <LoginScreen />;
       }
 
       // アプリ認証後、Firebase準備待ち
