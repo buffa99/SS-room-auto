@@ -359,32 +359,6 @@
       font-weight: bold;
       font-size: 14px;
     }
-    .sync-status {
-      position: fixed;
-      top: 10px;
-      right: 10px;
-      padding: 6px 12px;
-      border-radius: 20px;
-      font-size: 12px;
-      z-index: 9999;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .sync-status.connected { background: #dcfce7; color: #166534; }
-    .sync-status.disconnected { background: #fee2e2; color: #991b1b; }
-    .sync-status.syncing { background: #fef3c7; color: #92400e; }
-    .sync-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: currentColor;
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
-    }
-    .sync-status.syncing .sync-dot { animation: pulse 1s infinite; }
     .editing-cell {
       outline: 3px solid var(--editor-color, #3b82f6) !important;
       outline-offset: -1px;
@@ -5834,14 +5808,6 @@
         </div>
         
         {/* 右クリックコンテキストメニュー（モーダル） */}
-        {/* 同時編集: 接続ステータス表示 */}
-        {isFirebaseEnabled && (
-          <div className={`sync-status ${syncStatus} print-hidden`}>
-            <span className="sync-dot"></span>
-            <span>{syncStatus === 'connected' ? '同期中' : syncStatus === 'syncing' ? '同期中...' : 'オフライン'}</span>
-          </div>
-        )}
-
         {/* 同時編集: 接続ユーザーパネル */}
         {isFirebaseEnabled && connectedUsers.length > 0 && (
           <div className="connected-users-panel print-hidden">
