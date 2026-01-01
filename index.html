@@ -1053,6 +1053,478 @@
     }
 
     // ============================================
+    // ヘッダーコンポーネント
+    // ============================================
+    const Header = ({
+      headerCollapsed, setHeaderCollapsed,
+      currentMonth, changeMonth,
+      userSearchQuery, setUserSearchQuery,
+      displayStartDate, setDisplayStartDate,
+      displayEndDate, setDisplayEndDate,
+      useCustomRange, setUseCustomRange,
+      lastBackup, exportData, importData,
+      recalculateAllData, recalculateAllSchedules,
+      setShowSettings, setShowLogoutConfirm,
+      fileInputRef
+    }) => {
+      return (
+        <>
+          {/* 折りたたみ時のコンパクトヘッダー */}
+          {headerCollapsed && (
+            <div className="mb-2 bg-blue-600 text-white px-4 py-2 rounded shadow-sm flex justify-between items-center print-hidden">
+              <div className="flex items-center gap-2">
+                <button onClick={() => changeMonth(-1)} className="p-1 hover:bg-blue-500 rounded">
+                  <ChevronLeft size={18}/>
+                </button>
+                <span className="font-bold">{currentMonth.getFullYear()}年{currentMonth.getMonth() + 1}月</span>
+                <button onClick={() => changeMonth(1)} className="p-1 hover:bg-blue-500 rounded">
+                  <ChevronRight size={18}/>
+                </button>
+                <button 
+                  onClick={() => setHeaderCollapsed(false)}
+                  className="ml-2 bg-white text-blue-600 px-3 py-1 rounded text-sm font-bold hover:bg-blue-50"
+                >
+                  ▼ 展開
+                </button>
+              </div>
+              <span className="text-sm opacity-75">{APP_CONFIG.facilityName}</span>
+            </div>
+          )}
+          
+          {/* 通常のヘッダー */}
+          {!headerCollapsed && (
+          <header className="mb-4 bg-white p-4 rounded shadow-sm border-l-4 border-blue-600 flex flex-col md:flex-row justify-between items-center gap-4 print-hidden">
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold text-gray-800">{APP_CONFIG.facilityName} 部屋割表（月間）</h1>
+                <button 
+                  onClick={() => setHeaderCollapsed(true)}
+                  className="bg-blue-500 hover:bg-blue-600 text-white text-sm px-3 py-1 rounded border-2 border-blue-600 font-bold shadow-sm"
+                  title="ヘッダーを折りたたむ"
+                >
+                  ▲ 縮小
+                </button>
+              </div>
+              <div className="flex items-center gap-4 mt-2">
+                <div className="flex items-center gap-4 bg-gray-100 p-2 rounded-lg">
+                  <button onClick={() => changeMonth(-1)} className="p-1 hover:bg-gray-200 rounded">
+                    <ChevronLeft size={20}/>
+                  </button>
+                  <span className="font-bold text-gray-700 flex items-center gap-2 text-lg w-40 justify-center">
+                    <CalendarIcon size={20}/>
+                    {currentMonth.getFullYear()}年 {currentMonth.getMonth() + 1}月
+                  </span>
+                  <button onClick={() => changeMonth(1)} className="p-1 hover:bg-gray-200 rounded">
+                    <ChevronRight size={20}/>
+                  </button>
+                </div>
+                
+                {/* 利用者検索 */}
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="🔍 利用者検索..."
+                    value={userSearchQuery}
+                    onChange={(e) => setUserSearchQuery(e.target.value)}
+                    className="w-48 p-2 pl-3 pr-8 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white"
+                  />
+                  {userSearchQuery && (
+                    <button
+                      onClick={() => setUserSearchQuery('')}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 text-lg font-bold"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+
+                {/* 期間選択 */}
+                <div className="flex items-center gap-2 ml-4 bg-white border rounded p-2">
+                  <span className="text-xs text-gray-500">📅期間:</span>
+                  <input
+                    type="date"
+                    value={displayStartDate}
+                    onChange={(e) => {
+                      setDisplayStartDate(e.target.value);
+                      if (e.target.value && displayEndDate) {
+                        setUseCustomRange(true);
+                      }
+                    }}
+                    className="text-sm p-1 border rounded w-32"
+                  />
+                  <span className="text-gray-400">～</span>
+                  <input
+                    type="date"
+                    value={displayEndDate}
+                    onChange={(e) => {
+                      setDisplayEndDate(e.target.value);
+                      if (displayStartDate && e.target.value) {
+                        setUseCustomRange(true);
+                      }
+                    }}
+                    className="text-sm p-1 border rounded w-32"
+                  />
+                  {useCustomRange && (
+                    <button
+                      onClick={() => {
+                        setUseCustomRange(false);
+                        setDisplayStartDate('');
+                        setDisplayEndDate('');
+                      }}
+                      className="text-xs bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded text-gray-600"
+                    >
+                      月表示に戻す
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2 items-center flex-wrap justify-end">
+              {/* バックアップ警告 */}
+              {(() => {
+                const daysSinceBackup = lastBackup 
+                  ? Math.floor((new Date() - lastBackup) / (1000 * 60 * 60 * 24))
+                  : null;
+                const needsBackup = daysSinceBackup === null || daysSinceBackup >= 7;
+                
+                return (
+                  <div className={`text-xs mr-2 flex items-center gap-1 ${needsBackup ? 'text-red-500 font-bold' : 'text-gray-400'}`}>
+                    <Save size={14}/>
+                    {lastBackup ? (
+                      needsBackup ? (
+                        <span>⚠️ {daysSinceBackup}日前にバックアップ</span>
+                      ) : (
+                        <span>最終バックアップ: {daysSinceBackup === 0 ? '今日' : `${daysSinceBackup}日前`}</span>
+                      )
+                    ) : (
+                      <span>⚠️ バックアップ未実施</span>
+                    )}
+                  </div>
+                );
+              })()}
+              <button 
+                onClick={exportData}
+                className={`flex items-center gap-1 text-white px-3 py-2 rounded font-bold shadow transition-colors text-sm ${
+                  (!lastBackup || (new Date() - lastBackup) / (1000 * 60 * 60 * 24) >= 7)
+                    ? 'bg-red-500 hover:bg-red-600 animate-pulse'
+                    : 'bg-green-600 hover:bg-green-700'
+                }`}
+                title="バックアップ"
+              >
+                <Download size={16} />
+                保存
+              </button>
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-1 bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-2 rounded font-bold shadow transition-colors text-sm"
+                title="復元"
+              >
+                <Upload size={16} />
+                復元
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                onChange={importData}
+                className="hidden"
+              />
+              <button 
+                onClick={recalculateAllData}
+                className="flex items-center gap-1 bg-orange-600 hover:bg-orange-700 text-white px-3 py-2 rounded font-bold shadow transition-colors text-sm"
+                title="全利用者の部屋割り＋入浴スケジュールを再計算"
+              >
+                🔄 すべて再計算
+              </button>
+              <button 
+                onClick={recalculateAllSchedules}
+                className="flex items-center gap-1 bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded font-bold shadow transition-colors text-sm"
+                title="入浴・リネンスケジュールのみ再計算（部屋割りは変更しない）"
+              >
+                🛁🛏️ 入浴・リネンのみ再計算
+              </button>
+              <button 
+                onClick={() => window.print()}
+                className="flex items-center gap-2 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded font-bold shadow transition-colors"
+              >
+                <Printer size={18} />
+                印刷
+              </button>
+              <button 
+                onClick={() => setShowSettings(true)}
+                className="flex items-center gap-1 bg-gray-500 hover:bg-gray-600 text-white px-3 py-2 rounded font-bold shadow transition-colors text-sm"
+                title="設定"
+              >
+                <Settings size={16} />
+              </button>
+              <button 
+                onClick={() => setShowLogoutConfirm(true)}
+                className="flex items-center gap-1 bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded font-bold shadow transition-colors text-sm"
+                title="ログアウト"
+              >
+                <LogOut size={16} />
+              </button>
+            </div>
+          </header>
+          )}
+        </>
+      );
+    };
+
+    // ============================================
+    // サイドバーコンポーネント（利用者リスト）
+    // ============================================
+    const Sidebar = ({
+      sidebarCollapsed, setSidebarCollapsed,
+      userSortOrder, setUserSortOrder,
+      userSearchQuery, users, currentMonth,
+      handleEditUser, deleteUser,
+      newUserOpen, setNewUserOpen,
+      setSelectionStart, setEditingUser, setNewUserData,
+      setTempFixedPeriod, setTempFixedRoomId, setCalendarMonth,
+      mealTickets, setEditingMealTicket, setShowMealTicketModal,
+      rooms, setEditingRooms, setShowRoomEditor,
+      clearAllData,
+      // 新規登録フォーム用
+      newUserData, handleSaveUser, clearSelectedDates, renderCalendarGrid,
+      tempFixedPeriod, tempFixedRoomId, tempRooms,
+      toggleCondition,
+      // 定数
+      CONDITIONS, BATH_TYPES, TEMP_ROOM_1_ID, TEMP_ROOM_2_ID
+    }) => {
+      return (
+        <>
+          {/* 折りたたみ時のサイドバー展開ボタン */}
+          {sidebarCollapsed && (
+            <button
+              onClick={() => setSidebarCollapsed(false)}
+              className="fixed left-0 top-1/2 transform -translate-y-1/2 bg-blue-600 text-white px-2 py-4 rounded-r-lg shadow-lg hover:bg-blue-700 z-30 print-hidden"
+              title="サイドバーを展開"
+            >
+              <span className="writing-mode-vertical">▶ 利用者</span>
+            </button>
+          )}
+          
+          {/* 左サイドバー */}
+          {!sidebarCollapsed && (
+          <div className="lg:col-span-1 space-y-4 print-hidden relative">
+            <div className="bg-white p-4 rounded shadow-sm border border-gray-200 relative">
+              <div className="flex justify-between items-center mb-2">
+                <h2 className="font-bold text-gray-700 flex items-center gap-2">
+                  <User size={18} />
+                  利用者リスト
+                </h2>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setUserSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                    className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded flex items-center gap-1 font-bold border border-blue-600"
+                    title={userSortOrder === 'asc' ? '降順に変更' : '昇順に変更'}
+                  >
+                    {userSortOrder === 'asc' ? '▲ あ→ん' : '▼ ん→あ'}
+                  </button>
+                  <button
+                    onClick={() => setSidebarCollapsed(true)}
+                    className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded font-bold border border-blue-600"
+                    title="サイドバーを折りたたむ"
+                  >
+                    ◀ 縮小
+                  </button>
+                </div>
+              </div>
+              
+              <div className="space-y-2 mb-4 max-h-[400px] overflow-y-auto">
+                {(() => {
+                  // 6ヶ月前の日付を計算
+                  const sixMonthsAgo = new Date();
+                  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+                  const sixMonthsAgoStr = toDateStr(sixMonthsAgo);
+                  
+                  // 表示対象のユーザーをフィルタリング
+                  const visibleUsers = users.filter(user => {
+                    if (user.isArchived) return false;
+                    if (user.stayDates && user.stayDates.length > 0) {
+                      const latestStayDate = [...user.stayDates].sort().pop();
+                      if (latestStayDate >= sixMonthsAgoStr) return true;
+                    }
+                    if (user.createdAt) {
+                      const createdDate = toDateStr(new Date(user.createdAt));
+                      if (createdDate >= sixMonthsAgoStr) return true;
+                    }
+                    if (!user.createdAt) return true;
+                    return false;
+                  });
+                  
+                  const searchedUsers = userSearchQuery
+                    ? visibleUsers.filter(user => user.name.toLowerCase().includes(userSearchQuery.toLowerCase()))
+                    : visibleUsers;
+                  
+                  const sortedUsers = [...searchedUsers].sort((a, b) => {
+                    const aSort = katakanaToHiragana(a.furigana || a.name);
+                    const bSort = katakanaToHiragana(b.furigana || b.name);
+                    const comparison = aSort.localeCompare(bSort, 'ja');
+                    return userSortOrder === 'asc' ? comparison : -comparison;
+                  });
+                  
+                  if (sortedUsers.length === 0 && userSearchQuery) {
+                    return <div className="text-center text-gray-400 py-4 text-sm">「{userSearchQuery}」に一致する利用者はいません</div>;
+                  }
+                  
+                  return sortedUsers.map(user => (
+                    <div key={user.id} className="p-2 border rounded bg-gray-50 flex justify-between items-start group">
+                      <div>
+                        <div className="font-bold text-gray-800">
+                          {user.name}
+                          {users.filter(u => u.name === user.name).length > 1 && (
+                            <span className="ml-1 text-[10px] bg-red-100 text-red-800 px-1 rounded border border-red-200 font-bold" title="同姓同名の利用者が存在します">⚠️同名あり</span>
+                          )}
+                          {user.isLongTerm && <span className="ml-1 text-[10px] bg-indigo-100 text-indigo-800 px-1 rounded border border-indigo-200">ロング</span>}
+                        </div>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {user.conditions.map(c => {
+                            const label = CONDITIONS.find(def => def.key === c)?.label;
+                            return label ? <span key={c} className="text-[10px] bg-blue-100 text-blue-800 px-1 rounded">{label}</span> : null;
+                          })}
+                          {user.medical?.insulin && <span className="text-[10px] bg-red-100 text-red-800 px-1 rounded">💉ｲﾝｽﾘﾝ</span>}
+                          {user.medical?.gastrostomy && <span className="text-[10px] bg-red-100 text-red-800 px-1 rounded">🔴胃ろう</span>}
+                          {user.medical?.oxygenTherapy && <span className="text-[10px] bg-red-100 text-red-800 px-1 rounded">🫁酸素</span>}
+                          {user.medical?.balloonCatheter && <span className="text-[10px] bg-red-100 text-red-800 px-1 rounded">🎈バルン</span>}
+                          {user.medical?.stoma && <span className="text-[10px] bg-red-100 text-red-800 px-1 rounded">⭕ストマ</span>}
+                        </div>
+                        <div className="text-sm text-gray-600 mt-1">
+                          利用日数: {user.stayDates.filter(d => d.startsWith(toDateStr(currentMonth).slice(0, 7))).length}日
+                          {user.bathType && <span className="ml-2 text-blue-600 font-bold">🛁{BATH_TYPES.find(b => b.key === user.bathType)?.label}</span>}
+                          {user.fixedRooms && Object.keys(user.fixedRooms).length > 0 && (
+                            <span className="ml-2 text-yellow-600 font-bold">🔒{Object.keys(user.fixedRooms).length}期間固定</span>
+                          )}
+                        </div>
+                        {(user.transport?.pickupMethod || user.transport?.pickupTime || user.transport?.dropoffTime) && (
+                          <div className="text-[10px] text-green-700 mt-1">
+                            🚗{user.transport.pickupMethod || ''}{user.transport.pickupTime && ` 迎${user.transport.pickupTime}`}{user.transport.dropoffTime && ` 送${user.transport.dropoffTime}`}{user.transport.wheelchairNeeded && ' 🦽車いす要'}
+                          </div>
+                        )}
+                        {user.careManager?.officeName && (
+                          <div className="text-[10px] text-purple-700 mt-1">
+                            📋{user.careManager.officeName}{user.careManager.staffName && ` (${user.careManager.staffName})`}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex gap-1">
+                        <button onClick={() => handleEditUser(user)} className="text-gray-400 hover:text-blue-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="編集">
+                          <Edit size={16} />
+                        </button>
+                        <button 
+                          onClick={() => {
+                            const periods = getStayPeriods(user.stayDates);
+                            if (periods.length === 0) {
+                              alert('利用日程がありません');
+                              return;
+                            }
+                            const period = periods[0];
+                            const periodStart = period[0];
+                            const periodEnd = period[period.length - 1];
+                            const ticketKey = `${user.id}_${periodStart}_${periodEnd}`;
+                            const existingTicket = mealTickets[ticketKey];
+                            
+                            if (existingTicket) {
+                              setEditingMealTicket(existingTicket);
+                            } else {
+                              const defaultMealPref = user.mealPref || {};
+                              setEditingMealTicket({
+                                userId: user.id,
+                                startDate: periodStart,
+                                endDate: periodEnd,
+                                unit: '樹',
+                                startMeal: '',
+                                endMeal: '',
+                                category: '',
+                                reason: '',
+                                foodType: defaultMealPref.foodType || '',
+                                diabetesKcal: '',
+                                mainDish: defaultMealPref.mainDish || '',
+                                mainDishOther: '',
+                                sideDish: defaultMealPref.sideDish || '',
+                                sideDishOther: '',
+                                drink: defaultMealPref.drink || '',
+                                snack: defaultMealPref.snack || '',
+                                memo: defaultMealPref.allergy ? `アレルギー: ${defaultMealPref.allergy}` : ''
+                              });
+                            }
+                            setShowMealTicketModal(true);
+                          }} 
+                          className="text-gray-400 hover:text-green-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="食事伝票"
+                        >
+                          🍽️
+                        </button>
+                        <button onClick={() => deleteUser(user.id)} className="text-gray-400 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="削除">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+
+              <button 
+                onClick={() => {
+                  setNewUserOpen(!newUserOpen);
+                  setSelectionStart(null);
+                  setEditingUser(null);
+                  setNewUserData({ 
+                    name: '', furigana: '', gender: '', birthDate: '', birthDateMode: 'wareki', birthEra: '', birthYear: '', birthMonth: '', birthDay: '',
+                    conditions: [], stayDates: [], fixedRooms: {}, bathType: '',
+                    medical: { insulin: false, gastrostomy: false, oxygenTherapy: false, balloonCatheter: false, stoma: false, note: '' },
+                    transport: { pickupTime: '', dropoffTime: '', address: '', pickupMethod: '', wheelchairNeeded: false, note: '' },
+                    careManager: { officeName: '', staffName: '', phone: '', fax: '', mobile: '' },
+                    mealPref: { foodType: '', mainDish: '', sideDish: '', drink: '', snack: '', allergy: '' },
+                    isLongTerm: false, longTermStartDate: '', longTermEndDate: ''
+                  });
+                  setTempFixedPeriod('');
+                  setTempFixedRoomId('');
+                  setCalendarMonth(currentMonth);
+                }}
+                className="w-full flex justify-center items-center gap-2 border-2 border-dashed border-gray-300 p-2 rounded text-gray-500 hover:border-blue-400 hover:text-blue-500 transition-colors"
+              >
+                <Plus size={16} />
+                {newUserOpen ? '閉じる' : '新規追加'}
+              </button>
+            </div>
+
+            <div className="bg-white p-4 rounded shadow-sm border border-gray-200">
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="font-bold text-sm text-gray-700 flex items-center gap-2"><MapPin size={16}/> 部屋条件</h3>
+                <button
+                  onClick={() => {
+                    setEditingRooms(JSON.parse(JSON.stringify(rooms)));
+                    setShowRoomEditor(true);
+                  }}
+                  className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded font-bold"
+                >
+                  ✏️ 編集
+                </button>
+              </div>
+              <ul className="text-sm text-gray-600 space-y-1">
+                {rooms.map(room => (
+                  <li key={room.id} className="flex">
+                    <span className="font-bold w-12 text-gray-800">{room.name}</span>
+                    <span className="text-gray-600">: {room.label || '通常'}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            
+            <div className="text-right">
+              <button onClick={clearAllData} className="text-xs text-gray-400 hover:text-red-500 underline">
+                全データを削除してリセット
+              </button>
+            </div>
+          </div>
+          )}
+        </>
+      );
+    };
+
+    // ============================================
     // メインアプリコンポーネント
     // ============================================
     function ShortStayAllocator({ onLogout }) {
@@ -3046,204 +3518,29 @@
       return (
         <>
         <div className="min-h-screen bg-gray-50 p-4 text-sm md:text-base font-sans print-p-0 print-bg-white">
-          {/* 折りたたみ時のコンパクトヘッダー */}
-          {headerCollapsed && (
-            <div className="mb-2 bg-blue-600 text-white px-4 py-2 rounded shadow-sm flex justify-between items-center print-hidden">
-              <div className="flex items-center gap-2">
-                <button onClick={() => changeMonth(-1)} className="p-1 hover:bg-blue-500 rounded">
-                  <ChevronLeft size={18}/>
-                </button>
-                <span className="font-bold">{currentMonth.getFullYear()}年{currentMonth.getMonth() + 1}月</span>
-                <button onClick={() => changeMonth(1)} className="p-1 hover:bg-blue-500 rounded">
-                  <ChevronRight size={18}/>
-                </button>
-                <button 
-                  onClick={() => setHeaderCollapsed(false)}
-                  className="ml-2 bg-white text-blue-600 px-3 py-1 rounded text-sm font-bold hover:bg-blue-50"
-                >
-                  ▼ 展開
-                </button>
-              </div>
-              <span className="text-sm opacity-75">{APP_CONFIG.facilityName}</span>
-            </div>
-          )}
-          
-          {/* 通常のヘッダー */}
-          {!headerCollapsed && (
-          <header className="mb-4 bg-white p-4 rounded shadow-sm border-l-4 border-blue-600 flex flex-col md:flex-row justify-between items-center gap-4 print-hidden">
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold text-gray-800">{APP_CONFIG.facilityName} 部屋割表（月間）</h1>
-                <button 
-                  onClick={() => setHeaderCollapsed(true)}
-                  className="bg-blue-500 hover:bg-blue-600 text-white text-sm px-3 py-1 rounded border-2 border-blue-600 font-bold shadow-sm"
-                  title="ヘッダーを折りたたむ"
-                >
-                  ▲ 縮小
-                </button>
-              </div>
-              <div className="flex items-center gap-4 mt-2">
-                <div className="flex items-center gap-4 bg-gray-100 p-2 rounded-lg">
-                  <button onClick={() => changeMonth(-1)} className="p-1 hover:bg-gray-200 rounded">
-                    <ChevronLeft size={20}/>
-                  </button>
-                  <span className="font-bold text-gray-700 flex items-center gap-2 text-lg w-40 justify-center">
-                    <CalendarIcon size={20}/>
-                    {currentMonth.getFullYear()}年 {currentMonth.getMonth() + 1}月
-                  </span>
-                  <button onClick={() => changeMonth(1)} className="p-1 hover:bg-gray-200 rounded">
-                    <ChevronRight size={20}/>
-                  </button>
-                </div>
-                
-                {/* 利用者検索 */}
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="🔍 利用者検索..."
-                    value={userSearchQuery}
-                    onChange={(e) => setUserSearchQuery(e.target.value)}
-                    className="w-48 p-2 pl-3 pr-8 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white"
-                  />
-                  {userSearchQuery && (
-                    <button
-                      onClick={() => setUserSearchQuery('')}
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 text-lg font-bold"
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-
-                {/* 期間選択 */}
-                <div className="flex items-center gap-2 ml-4 bg-white border rounded p-2">
-                  <span className="text-xs text-gray-500">📅期間:</span>
-                  <input
-                    type="date"
-                    value={displayStartDate}
-                    onChange={(e) => {
-                      setDisplayStartDate(e.target.value);
-                      if (e.target.value && displayEndDate) {
-                        setUseCustomRange(true);
-                      }
-                    }}
-                    className="text-sm p-1 border rounded w-32"
-                  />
-                  <span className="text-gray-400">～</span>
-                  <input
-                    type="date"
-                    value={displayEndDate}
-                    onChange={(e) => {
-                      setDisplayEndDate(e.target.value);
-                      if (displayStartDate && e.target.value) {
-                        setUseCustomRange(true);
-                      }
-                    }}
-                    className="text-sm p-1 border rounded w-32"
-                  />
-                  {useCustomRange && (
-                    <button
-                      onClick={() => {
-                        setUseCustomRange(false);
-                        setDisplayStartDate('');
-                        setDisplayEndDate('');
-                      }}
-                      className="text-xs bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded text-gray-600"
-                    >
-                      月表示に戻す
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="flex gap-2 items-center flex-wrap justify-end">
-              {/* バックアップ警告 */}
-              {(() => {
-                const daysSinceBackup = lastBackup 
-                  ? Math.floor((new Date() - lastBackup) / (1000 * 60 * 60 * 24))
-                  : null;
-                const needsBackup = daysSinceBackup === null || daysSinceBackup >= 7;
-                
-                return (
-                  <div className={`text-xs mr-2 flex items-center gap-1 ${needsBackup ? 'text-red-500 font-bold' : 'text-gray-400'}`}>
-                    <Save size={14}/>
-                    {lastBackup ? (
-                      needsBackup ? (
-                        <span>⚠️ {daysSinceBackup}日前にバックアップ</span>
-                      ) : (
-                        <span>最終バックアップ: {daysSinceBackup === 0 ? '今日' : `${daysSinceBackup}日前`}</span>
-                      )
-                    ) : (
-                      <span>⚠️ バックアップ未実施</span>
-                    )}
-                  </div>
-                );
-              })()}
-              <button 
-                onClick={exportData}
-                className={`flex items-center gap-1 text-white px-3 py-2 rounded font-bold shadow transition-colors text-sm ${
-                  (!lastBackup || (new Date() - lastBackup) / (1000 * 60 * 60 * 24) >= 7)
-                    ? 'bg-red-500 hover:bg-red-600 animate-pulse'
-                    : 'bg-green-600 hover:bg-green-700'
-                }`}
-                title="バックアップ"
-              >
-                <Download size={16} />
-                保存
-              </button>
-              <button 
-                onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-1 bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-2 rounded font-bold shadow transition-colors text-sm"
-                title="復元"
-              >
-                <Upload size={16} />
-                復元
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".json"
-                onChange={importData}
-                className="hidden"
-              />
-              <button 
-                onClick={recalculateAllData}
-                className="flex items-center gap-1 bg-orange-600 hover:bg-orange-700 text-white px-3 py-2 rounded font-bold shadow transition-colors text-sm"
-                title="全利用者の部屋割り＋入浴スケジュールを再計算"
-              >
-                🔄 すべて再計算
-              </button>
-              <button 
-                onClick={recalculateAllSchedules}
-                className="flex items-center gap-1 bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded font-bold shadow transition-colors text-sm"
-                title="入浴・リネンスケジュールのみ再計算（部屋割りは変更しない）"
-              >
-                🛁🛏️ 入浴・リネンのみ再計算
-              </button>
-              <button 
-                onClick={() => window.print()}
-                className="flex items-center gap-2 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded font-bold shadow transition-colors"
-              >
-                <Printer size={18} />
-                印刷
-              </button>
-              <button 
-                onClick={() => setShowSettings(true)}
-                className="flex items-center gap-1 bg-gray-500 hover:bg-gray-600 text-white px-3 py-2 rounded font-bold shadow transition-colors text-sm"
-                title="設定"
-              >
-                <Settings size={16} />
-              </button>
-              <button 
-                onClick={() => setShowLogoutConfirm(true)}
-                className="flex items-center gap-1 bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded font-bold shadow transition-colors text-sm"
-                title="ログアウト"
-              >
-                <LogOut size={16} />
-              </button>
-            </div>
-          </header>
-          )}
+          {/* ヘッダーコンポーネント */}
+          <Header 
+            headerCollapsed={headerCollapsed}
+            setHeaderCollapsed={setHeaderCollapsed}
+            currentMonth={currentMonth}
+            changeMonth={changeMonth}
+            userSearchQuery={userSearchQuery}
+            setUserSearchQuery={setUserSearchQuery}
+            displayStartDate={displayStartDate}
+            setDisplayStartDate={setDisplayStartDate}
+            displayEndDate={displayEndDate}
+            setDisplayEndDate={setDisplayEndDate}
+            useCustomRange={useCustomRange}
+            setUseCustomRange={setUseCustomRange}
+            lastBackup={lastBackup}
+            exportData={exportData}
+            importData={importData}
+            recalculateAllData={recalculateAllData}
+            recalculateAllSchedules={recalculateAllSchedules}
+            setShowSettings={setShowSettings}
+            setShowLogoutConfirm={setShowLogoutConfirm}
+            fileInputRef={fileInputRef}
+          />
 
           {/* ログアウト確認モーダル */}
           {showLogoutConfirm && (
@@ -4114,230 +4411,46 @@
           )}
 
           <div className={`grid grid-cols-1 ${sidebarCollapsed ? '' : 'lg:grid-cols-5'} gap-6 print-block`}>
-            {/* 折りたたみ時のサイドバー展開ボタン */}
-            {sidebarCollapsed && (
-              <button
-                onClick={() => setSidebarCollapsed(false)}
-                className="fixed left-0 top-1/2 transform -translate-y-1/2 bg-blue-600 text-white px-2 py-4 rounded-r-lg shadow-lg hover:bg-blue-700 z-30 print-hidden"
-                title="サイドバーを展開"
-              >
-                <span className="writing-mode-vertical">▶ 利用者</span>
-              </button>
-            )}
+            {/* サイドバーコンポーネント */}
+            <Sidebar
+              sidebarCollapsed={sidebarCollapsed}
+              setSidebarCollapsed={setSidebarCollapsed}
+              userSortOrder={userSortOrder}
+              setUserSortOrder={setUserSortOrder}
+              userSearchQuery={userSearchQuery}
+              users={users}
+              currentMonth={currentMonth}
+              handleEditUser={handleEditUser}
+              deleteUser={deleteUser}
+              newUserOpen={newUserOpen}
+              setNewUserOpen={setNewUserOpen}
+              setSelectionStart={setSelectionStart}
+              setEditingUser={setEditingUser}
+              setNewUserData={setNewUserData}
+              setTempFixedPeriod={setTempFixedPeriod}
+              setTempFixedRoomId={setTempFixedRoomId}
+              setCalendarMonth={setCalendarMonth}
+              mealTickets={mealTickets}
+              setEditingMealTicket={setEditingMealTicket}
+              setShowMealTicketModal={setShowMealTicketModal}
+              rooms={rooms}
+              setEditingRooms={setEditingRooms}
+              setShowRoomEditor={setShowRoomEditor}
+              clearAllData={clearAllData}
+              newUserData={newUserData}
+              handleSaveUser={handleSaveUser}
+              clearSelectedDates={clearSelectedDates}
+              renderCalendarGrid={renderCalendarGrid}
+              tempFixedPeriod={tempFixedPeriod}
+              tempFixedRoomId={tempFixedRoomId}
+              tempRooms={tempRooms}
+              toggleCondition={toggleCondition}
+              CONDITIONS={CONDITIONS}
+              BATH_TYPES={BATH_TYPES}
+              TEMP_ROOM_1_ID={TEMP_ROOM_1_ID}
+              TEMP_ROOM_2_ID={TEMP_ROOM_2_ID}
+            />
             
-            {/* 左サイドバー */}
-            {!sidebarCollapsed && (
-            <div className="lg:col-span-1 space-y-4 print-hidden relative">
-              <div className="bg-white p-4 rounded shadow-sm border border-gray-200 relative">
-                <div className="flex justify-between items-center mb-2">
-                  <h2 className="font-bold text-gray-700 flex items-center gap-2">
-                    <User size={18} />
-                    利用者リスト
-                  </h2>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => setUserSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-                      className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded flex items-center gap-1 font-bold border border-blue-600"
-                      title={userSortOrder === 'asc' ? '降順に変更' : '昇順に変更'}
-                    >
-                      {userSortOrder === 'asc' ? '▲ あ→ん' : '▼ ん→あ'}
-                    </button>
-                    <button
-                      onClick={() => setSidebarCollapsed(true)}
-                      className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded font-bold border border-blue-600"
-                      title="サイドバーを折りたたむ"
-                    >
-                      ◀ 縮小
-                    </button>
-                  </div>
-                </div>
-                
-                <div className="space-y-2 mb-4 max-h-[400px] overflow-y-auto">
-                  {(() => {
-                    // 6ヶ月前の日付を計算
-                    const sixMonthsAgo = new Date();
-                    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-                    const sixMonthsAgoStr = toDateStr(sixMonthsAgo);
-                    
-                    // 表示対象のユーザーをフィルタリング
-                    const visibleUsers = users.filter(user => {
-                      // アーカイブ済みは非表示
-                      if (user.isArchived) return false;
-                      
-                      // 利用日があれば、最新の利用日をチェック
-                      if (user.stayDates && user.stayDates.length > 0) {
-                        const latestStayDate = [...user.stayDates].sort().pop();
-                        // 6ヶ月以内に利用があれば表示
-                        if (latestStayDate >= sixMonthsAgoStr) return true;
-                      }
-                      
-                      // 利用日がなくても、作成日が6ヶ月以内なら表示
-                      if (user.createdAt) {
-                        const createdDate = toDateStr(new Date(user.createdAt));
-                        if (createdDate >= sixMonthsAgoStr) return true;
-                      }
-                      
-                      // 後方互換性：createdAtがない場合は表示
-                      if (!user.createdAt) return true;
-                      
-                      return false;
-                    });
-                    
-                    // 検索フィルタリング
-                    const searchedUsers = userSearchQuery
-                      ? visibleUsers.filter(user => 
-                          user.name.toLowerCase().includes(userSearchQuery.toLowerCase())
-                        )
-                      : visibleUsers;
-                    
-                    // 50音順にソート（フリガナがあればフリガナを使用、カタカナはひらがなに変換）
-                    const sortedUsers = [...searchedUsers].sort((a, b) => {
-                      const aSort = katakanaToHiragana(a.furigana || a.name);
-                      const bSort = katakanaToHiragana(b.furigana || b.name);
-                      const comparison = aSort.localeCompare(bSort, 'ja');
-                      return userSortOrder === 'asc' ? comparison : -comparison;
-                    });
-                    
-                    if (sortedUsers.length === 0 && userSearchQuery) {
-                      return <div className="text-center text-gray-400 py-4 text-sm">「{userSearchQuery}」に一致する利用者はいません</div>;
-                    }
-                    
-                    return sortedUsers.map(user => (
-                      <div key={user.id} className="p-2 border rounded bg-gray-50 flex justify-between items-start group">
-                        <div>
-                          <div className="font-bold text-gray-800">
-                            {user.name}
-                            {users.filter(u => u.name === user.name).length > 1 && (
-                              <span className="ml-1 text-[10px] bg-red-100 text-red-800 px-1 rounded border border-red-200 font-bold" title="同姓同名の利用者が存在します">⚠️同名あり</span>
-                            )}
-                            {user.isLongTerm && <span className="ml-1 text-[10px] bg-indigo-100 text-indigo-800 px-1 rounded border border-indigo-200">ロング</span>}
-                          </div>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {user.conditions.map(c => {
-                              const label = CONDITIONS.find(def => def.key === c)?.label;
-                              return label ? <span key={c} className="text-[10px] bg-blue-100 text-blue-800 px-1 rounded">{label}</span> : null;
-                            })}
-                            {/* 医療情報アイコン */}
-                            {user.medical?.insulin && <span className="text-[10px] bg-red-100 text-red-800 px-1 rounded">💉ｲﾝｽﾘﾝ</span>}
-                            {user.medical?.gastrostomy && <span className="text-[10px] bg-red-100 text-red-800 px-1 rounded">🔴胃ろう</span>}
-                            {user.medical?.oxygenTherapy && <span className="text-[10px] bg-red-100 text-red-800 px-1 rounded">🫁酸素</span>}
-                            {user.medical?.balloonCatheter && <span className="text-[10px] bg-red-100 text-red-800 px-1 rounded">🎈バルン</span>}
-                            {user.medical?.stoma && <span className="text-[10px] bg-red-100 text-red-800 px-1 rounded">⭕ストマ</span>}
-                          </div>
-                          <div className="text-sm text-gray-600 mt-1">
-                            利用日数: {user.stayDates.filter(d => d.startsWith(toDateStr(currentMonth).slice(0, 7))).length}日
-                            {user.bathType && <span className="ml-2 text-blue-600 font-bold">🛁{BATH_TYPES.find(b => b.key === user.bathType)?.label}</span>}
-                            {user.fixedRooms && Object.keys(user.fixedRooms).length > 0 && (
-                              <span className="ml-2 text-yellow-600 font-bold">🔒{Object.keys(user.fixedRooms).length}期間固定</span>
-                            )}
-                          </div>
-                          {/* 送迎情報（簡易表示） */}
-                          {(user.transport?.pickupMethod || user.transport?.pickupTime || user.transport?.dropoffTime) && (
-                            <div className="text-[10px] text-green-700 mt-1">
-                              🚗{user.transport.pickupMethod || ''}{user.transport.pickupTime && ` 迎${user.transport.pickupTime}`}{user.transport.dropoffTime && ` 送${user.transport.dropoffTime}`}{user.transport.wheelchairNeeded && ' 🦽車いす要'}
-                            </div>
-                          )}
-                          {/* 居宅事業所（簡易表示） */}
-                          {user.careManager?.officeName && (
-                            <div className="text-[10px] text-purple-700 mt-1">
-                              📋{user.careManager.officeName}{user.careManager.staffName && ` (${user.careManager.staffName})`}
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex gap-1">
-                          <button onClick={() => handleEditUser(user)} className="text-gray-400 hover:text-blue-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="編集">
-                            <Edit size={16} />
-                          </button>
-                          <button 
-                            onClick={() => {
-                              // 食事伝票一覧を表示（利用期間ごと）
-                              const periods = getStayPeriods(user.stayDates);
-                              if (periods.length === 0) {
-                                alert('利用日程がありません');
-                                return;
-                              }
-                              // 最初の期間の伝票を開く（または新規作成）
-                              const period = periods[0];
-                              const periodStart = period[0];
-                              const periodEnd = period[period.length - 1];
-                              const ticketKey = `${user.id}_${periodStart}_${periodEnd}`;
-                              const existingTicket = mealTickets[ticketKey];
-                              
-                              if (existingTicket) {
-                                setEditingMealTicket(existingTicket);
-                              } else {
-                                const defaultMealPref = user.mealPref || {};
-                                setEditingMealTicket({
-                                  userId: user.id,
-                                  startDate: periodStart,
-                                  endDate: periodEnd,
-                                  unit: '樹',
-                                  startMeal: '',
-                                  endMeal: '',
-                                  category: '',
-                                  reason: '',
-                                  foodType: defaultMealPref.foodType || '',
-                                  diabetesKcal: '',
-                                  mainDish: defaultMealPref.mainDish || '',
-                                  mainDishOther: '',
-                                  sideDish: defaultMealPref.sideDish || '',
-                                  sideDishOther: '',
-                                  drink: defaultMealPref.drink || '',
-                                  snack: defaultMealPref.snack || '',
-                                  memo: defaultMealPref.allergy ? `アレルギー: ${defaultMealPref.allergy}` : ''
-                                });
-                              }
-                              setShowMealTicketModal(true);
-                            }} 
-                            className="text-gray-400 hover:text-green-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                            title="食事伝票"
-                          >
-                            🍽️
-                          </button>
-                          <button onClick={() => deleteUser(user.id)} className="text-gray-400 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="削除">
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    ));
-                  })()}
-                </div>
-
-                <button 
-                  onClick={() => {
-                    setNewUserOpen(!newUserOpen);
-                    setSelectionStart(null);
-                    setEditingUser(null);
-                    setNewUserData({ 
-                      name: '', 
-                      furigana: '', 
-                      gender: '',
-                      birthDate: '',
-                      birthDateMode: 'wareki',
-                      birthEra: '',
-                      birthYear: '',
-                      birthMonth: '',
-                      birthDay: '',
-                      conditions: [], 
-                      stayDates: [], 
-                      fixedRooms: {}, 
-                      bathType: '',
-                      medical: { insulin: false, gastrostomy: false, oxygenTherapy: false, balloonCatheter: false, stoma: false, note: '' },
-                      transport: { pickupTime: '', dropoffTime: '', address: '', pickupMethod: '', wheelchairNeeded: false, note: '' },
-                      careManager: { officeName: '', staffName: '', phone: '', fax: '', mobile: '' },
-                      mealPref: { foodType: '', mainDish: '', sideDish: '', drink: '', snack: '', allergy: '' },
-                      isLongTerm: false, longTermStartDate: '', longTermEndDate: ''
-                    });
-                    setTempFixedPeriod('');
-                    setTempFixedRoomId('');
-                    setCalendarMonth(currentMonth); // カレンダー月をリセット
-                  }}
-                  className="w-full flex justify-center items-center gap-2 border-2 border-dashed border-gray-300 p-2 rounded text-gray-500 hover:border-blue-400 hover:text-blue-500 transition-colors"
-                >
-                  <Plus size={16} />
-                  {newUserOpen ? '閉じる' : '新規追加'}
-                </button>
-
                 {newUserOpen && (
                   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                     <div className="bg-white rounded-lg shadow-xl p-5 w-[400px] max-w-[90vw] max-h-[85vh] overflow-y-auto">
@@ -5077,38 +5190,6 @@
                     </div>
                   </div>
                 )}
-              </div>
-
-              <div className="bg-white p-4 rounded shadow-sm border border-gray-200">
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-bold text-sm text-gray-700 flex items-center gap-2"><MapPin size={16}/> 部屋条件</h3>
-                  <button
-                    onClick={() => {
-                      setEditingRooms(JSON.parse(JSON.stringify(rooms)));
-                      setShowRoomEditor(true);
-                    }}
-                    className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded font-bold"
-                  >
-                    ✏️ 編集
-                  </button>
-                </div>
-                <ul className="text-sm text-gray-600 space-y-1">
-                  {rooms.map(room => (
-                    <li key={room.id} className="flex">
-                      <span className="font-bold w-12 text-gray-800">{room.name}</span>
-                      <span className="text-gray-600">: {room.label || '通常'}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              
-              <div className="text-right">
-                <button onClick={clearAllData} className="text-xs text-gray-400 hover:text-red-500 underline">
-                  全データを削除してリセット
-                </button>
-              </div>
-            </div>
-            )}
 
             {/* メインエリア */}
             <div className={`${sidebarCollapsed ? 'col-span-1' : 'lg:col-span-4'} bg-white rounded shadow-sm border border-gray-200 p-2 print-col-span-5 print-shadow-none print-border-none print-p-0 flex flex-col`} style={{height: headerCollapsed ? 'calc(100vh - 60px)' : 'calc(100vh - 120px)'}}>
