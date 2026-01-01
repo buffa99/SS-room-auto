@@ -2412,6 +2412,18 @@
       const handleSaveUser = () => {
         if (!newUserData.name) return;
 
+        // 同姓同名チェック（アーカイブ含む全ユーザー対象）
+        const duplicateUser = users.find(u => 
+          u.name === newUserData.name && 
+          (!editingUser || u.id !== editingUser.id)
+        );
+
+        if (duplicateUser) {
+          if (!window.confirm(`⚠️ 同姓同名の利用者が既に存在します！\n\n同姓同名の方がいる場合、現場での取り違え事故につながる恐れがあります。\n区別のため、名前に識別情報を追加することを強く推奨します。\n\n例：${newUserData.name}(大正)、${newUserData.name}(小) など\n\nこのままの名前で保存しますか？`)) {
+            return;
+          }
+        }
+
         // 保存用データの準備（ロング利用の場合は日付を自動生成）
         let dataToSave = { ...newUserData };
         if (dataToSave.isLongTerm && dataToSave.longTermStartDate) {
@@ -3530,6 +3542,55 @@
                       <div className="mt-2 text-xs text-gray-500">
                         現在の設定: <span className="font-bold text-gray-700">{room.label || '通常'}</span>
                       </div>
+                      
+                      {/* ステータス設定（入院・退去） */}
+                      <div className="mt-2 pt-2 border-t border-gray-200">
+                        <span className="text-xs font-bold text-gray-600 mr-2">ステータス:</span>
+                        <div className="flex gap-3 inline-flex">
+                          <label className="flex items-center gap-1 cursor-pointer">
+                            <input 
+                              type="radio" 
+                              name={`status-${room.id}`}
+                              checked={!room.status || room.status === 'normal'}
+                              onChange={() => {
+                                const newRooms = [...editingRooms];
+                                newRooms[index] = { ...newRooms[index], status: 'normal' };
+                                setEditingRooms(newRooms);
+                              }}
+                              className="text-blue-600"
+                            />
+                            <span className="text-xs">通常</span>
+                          </label>
+                          <label className="flex items-center gap-1 cursor-pointer">
+                            <input 
+                              type="radio" 
+                              name={`status-${room.id}`}
+                              checked={room.status === 'hospitalized'}
+                              onChange={() => {
+                                const newRooms = [...editingRooms];
+                                newRooms[index] = { ...newRooms[index], status: 'hospitalized' };
+                                setEditingRooms(newRooms);
+                              }}
+                              className="text-yellow-600"
+                            />
+                            <span className="text-xs bg-yellow-100 px-1 rounded border border-yellow-200">入院</span>
+                          </label>
+                          <label className="flex items-center gap-1 cursor-pointer">
+                            <input 
+                              type="radio" 
+                              name={`status-${room.id}`}
+                              checked={room.status === 'moved_out'}
+                              onChange={() => {
+                                const newRooms = [...editingRooms];
+                                newRooms[index] = { ...newRooms[index], status: 'moved_out' };
+                                setEditingRooms(newRooms);
+                              }}
+                              className="text-red-600"
+                            />
+                            <span className="text-xs bg-red-100 px-1 rounded border border-red-200">退去</span>
+                          </label>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -4133,6 +4194,9 @@
                         <div>
                           <div className="font-bold text-gray-800">
                             {user.name}
+                            {users.filter(u => u.name === user.name).length > 1 && (
+                              <span className="ml-1 text-[10px] bg-red-100 text-red-800 px-1 rounded border border-red-200 font-bold" title="同姓同名の利用者が存在します">⚠️同名あり</span>
+                            )}
                             {user.isLongTerm && <span className="ml-1 text-[10px] bg-indigo-100 text-indigo-800 px-1 rounded border border-indigo-200">ロング</span>}
                           </div>
                           <div className="flex flex-wrap gap-1 mt-1">
@@ -4501,7 +4565,14 @@
                               className="flex-1 p-1 border rounded text-xs"
                             >
                               <option value="">部屋を選択</option>
-                              {rooms.map(r => <option key={r.id} value={r.id}>{r.name} ({r.label || '通常'})</option>)}
+                              <optgroup label="居室">
+                                {rooms.map(r => <option key={r.id} value={r.id}>{r.name} ({r.label || '通常'})</option>)}
+                              </optgroup>
+                              <optgroup label="一時保管・空床">
+                                <option value={TEMP_ROOM_1_ID}>一時保管①</option>
+                                <option value={TEMP_ROOM_2_ID}>一時保管②</option>
+                                {tempRooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                              </optgroup>
                             </select>
                             <button
                               onClick={() => {
@@ -5187,7 +5258,7 @@
                 </thead>
                 <tbody>
                   {rooms.map(room => (
-                    <tr key={room.id} className="hover:bg-gray-50 print-break-inside-avoid">
+                    <tr key={room.id} className={`hover:bg-gray-50 print-break-inside-avoid ${room.status === 'hospitalized' ? 'bg-yellow-100' : room.status === 'moved_out' ? 'bg-red-100' : ''}`}>
                       <td className="p-1 border-2 border-gray-400 align-middle bg-white sticky left-0 z-10 shadow-sm print-static print-shadow-none text-center" style={{width: '150px', minWidth: '150px'}}>
                         <div className="flex flex-col items-center">
                           <span className="font-bold text-3xl text-gray-800">{room.name}</span>
