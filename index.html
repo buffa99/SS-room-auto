@@ -4571,7 +4571,9 @@
                               <optgroup label="一時保管・空床">
                                 <option value={TEMP_ROOM_1_ID}>一時保管①</option>
                                 <option value={TEMP_ROOM_2_ID}>一時保管②</option>
-                                {tempRooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                                {tempRooms.sort((a, b) => a.month.localeCompare(b.month) || a.name.localeCompare(b.name)).map(r => (
+                                  <option key={r.id} value={r.id}>{r.name} ({r.month})</option>
+                                ))}
                               </optgroup>
                             </select>
                             <button
