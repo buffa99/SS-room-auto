@@ -3601,13 +3601,21 @@
                     if (!exists) return null;
                     return (
                       <button
-                        onClick={() => {
+                        onClick={async () => {
                           if (window.confirm(`この伝票（${editingMealTicket.startDate}〜${editingMealTicket.endDate}）を削除しますか？`)) {
-                            setMealTickets(prev => {
-                              const newTickets = { ...prev };
-                              delete newTickets[ticketKey];
-                              return newTickets;
-                            });
+                            const ticketKey = `${editingMealTicket.userId}_${editingMealTicket.startDate}_${editingMealTicket.endDate}`;
+                            
+                            if (isFirebaseEnabled && database) {
+                              const updates = {};
+                              updates[`data/${STORAGE_KEY_MEAL_TICKETS}/${ticketKey}`] = null;
+                              await database.ref().update(updates);
+                            } else {
+                              setMealTickets(prev => {
+                                const newTickets = { ...prev };
+                                delete newTickets[ticketKey];
+                                return newTickets;
+                              });
+                            }
                             setShowMealTicketModal(false);
                             setEditingMealTicket(null);
                             alert('伝票を削除しました');
@@ -3950,7 +3958,9 @@
                         // 保存
                         const ticketKey = `${editingMealTicket.userId}_${editingMealTicket.startDate}_${editingMealTicket.endDate}`;
                         if (isFirebaseEnabled && database) {
-                          await database.ref(`data/${STORAGE_KEY_MEAL_TICKETS}/${ticketKey}`).set(editingMealTicket);
+                          const updates = {};
+                          updates[`data/${STORAGE_KEY_MEAL_TICKETS}/${ticketKey}`] = editingMealTicket;
+                          await database.ref().update(updates);
                         } else {
                           setMealTickets(prev => ({
                             ...prev,
