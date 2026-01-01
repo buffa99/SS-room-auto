@@ -5388,6 +5388,7 @@
                       const today = toDateStr(new Date());
                       const isPastHeader = dateStr < today;
                       const isToday = dateStr === today;
+                      const isSunday = dayOfWeek === 0;
                       
                       // インラインスタイルで確実に色を適用
                       let bgColor = '#f9fafb'; // gray-50
@@ -5424,9 +5425,7 @@
                         <th key={dateStr} className={`p-1 border-2 border-gray-400 text-center ${cellWidth}`}
                           style={{ 
                             backgroundColor: bgColor,
-                            borderLeftWidth: isToday ? '6px' : undefined,
-                            borderLeftColor: isToday ? '#1e3a8a' : undefined,
-                            borderLeftStyle: isToday ? 'solid' : undefined
+                            borderLeft: isSunday ? '4px solid #ef4444' : (isToday ? '6px solid #1e3a8a' : undefined)
                           }}
                           title={holiday || ''}
                         >
@@ -5479,6 +5478,7 @@
                         const today = toDateStr(new Date());
                         const isPast = dateStr < today;
                         const isToday = dateStr === today;
+                        const isSunday = dateObj.getDay() === 0;
                         const isEmpty = sortedIds.length === 0;
                         const hasDoubleBooking = sortedIds.length >= 2; // 同日に2人いる場合
 
@@ -5493,8 +5493,7 @@
                                 isEmpty ? '#00FE73' : 
                                 isPast ? '#9ca3af' : 
                                 isWeekend ? 'rgba(249, 250, 251, 0.5)' : 'white',
-                              borderLeftWidth: isToday ? '6px' : undefined,
-                              borderLeftColor: isToday ? '#1e3a8a' : undefined
+                              borderLeft: isSunday ? '4px solid #ef4444' : (isToday ? '6px solid #1e3a8a' : undefined)
                             }}
                             onDragOver={(e) => handleRoomDragOver(e, dateStr, room.id)}
                             onDragLeave={handleRoomDragLeave}
@@ -5749,9 +5748,12 @@
                   {/* 空行 */}
                   <tr>
                     <td className="p-1 border-2 border-gray-400 bg-gray-50"></td>
-                    {displayDates.map(dateStr => (
-                      <td key={dateStr} className="p-1 border-2 border-gray-400 bg-gray-50"></td>
-                    ))}
+                    {displayDates.map(dateStr => {
+                      const isSunday = parseLocalDate(dateStr).getDay() === 0;
+                      return (
+                        <td key={dateStr} className="p-1 border-2 border-gray-400 bg-gray-50" style={{ borderLeft: isSunday ? '4px solid #ef4444' : undefined }}></td>
+                      );
+                    })}
                     <td className="p-1 border-2 border-gray-400 bg-gray-50 min-w-[150px]"></td>
                   </tr>
                   {/* 実績数行 */}
@@ -5768,11 +5770,11 @@
                       }, 0);
                       const today = toDateStr(new Date());
                       const isToday = dateStr === today;
+                      const isSunday = parseLocalDate(dateStr).getDay() === 0;
                       return (
                         <td key={dateStr} className="p-1 border-2 border-gray-400 bg-yellow-100 text-center align-middle"
                           style={{
-                            borderLeftWidth: isToday ? '6px' : undefined,
-                            borderLeftColor: isToday ? '#1e3a8a' : undefined
+                            borderLeft: isSunday ? '4px solid #ef4444' : (isToday ? '6px solid #1e3a8a' : undefined)
                           }}
                         >
                           <span className="font-bold text-xl text-gray-800">{dailyCount}</span>
@@ -5792,6 +5794,7 @@
                       const isRoomDragOver = dragOverRoom === `${dateStr}-${TEMP_ROOM_1_ID}`;
                       const today = toDateStr(new Date());
                       const isToday = dateStr === today;
+                      const isSunday = parseLocalDate(dateStr).getDay() === 0;
                       
                       return (
                         <td 
@@ -5800,8 +5803,7 @@
                             ${tempOccupants.length > 0 ? 'bg-orange-100' : 'bg-orange-50'}
                             ${isRoomDragOver ? 'bg-yellow-100 border-dashed border-yellow-500' : ''}`}
                           style={{
-                            borderLeftWidth: isToday ? '6px' : undefined,
-                            borderLeftColor: isToday ? '#1e3a8a' : undefined
+                            borderLeft: isSunday ? '4px solid #ef4444' : (isToday ? '6px solid #1e3a8a' : undefined)
                           }}
                           onDragOver={(e) => handleRoomDragOver(e, dateStr, TEMP_ROOM_1_ID)}
                           onDragLeave={handleRoomDragLeave}
@@ -5851,6 +5853,7 @@
                       const isRoomDragOver = dragOverRoom === `${dateStr}-${TEMP_ROOM_2_ID}`;
                       const today = toDateStr(new Date());
                       const isToday = dateStr === today;
+                      const isSunday = parseLocalDate(dateStr).getDay() === 0;
                       
                       return (
                         <td 
@@ -5859,8 +5862,7 @@
                             ${tempOccupants.length > 0 ? 'bg-orange-100' : 'bg-orange-50'}
                             ${isRoomDragOver ? 'bg-yellow-100 border-dashed border-yellow-500' : ''}`}
                           style={{
-                            borderLeftWidth: isToday ? '6px' : undefined,
-                            borderLeftColor: isToday ? '#1e3a8a' : undefined
+                            borderLeft: isSunday ? '4px solid #ef4444' : (isToday ? '6px solid #1e3a8a' : undefined)
                           }}
                           onDragOver={(e) => handleRoomDragOver(e, dateStr, TEMP_ROOM_2_ID)}
                           onDragLeave={handleRoomDragLeave}
@@ -5929,13 +5931,13 @@
                         const memoKey2 = `${dateStr}-${customRow.id}-2`;
                         const today = toDateStr(new Date());
                         const isToday = dateStr === today;
+                        const isSunday = parseLocalDate(dateStr).getDay() === 0;
                         return (
                           <td 
                             key={dateStr} 
                             className="p-0 border border-gray-400 bg-white align-top"
                             style={{
-                              borderLeftWidth: isToday ? '6px' : undefined,
-                              borderLeftColor: isToday ? '#1e3a8a' : undefined
+                              borderLeft: isSunday ? '4px solid #ef4444' : (isToday ? '6px solid #1e3a8a' : undefined)
                             }}
                           >
                             <div className="flex flex-col h-full">
@@ -5995,9 +5997,12 @@
                         ＋ 行を追加
                       </button>
                     </td>
-                    {displayDates.map(dateStr => (
-                      <td key={dateStr} className="border border-transparent"></td>
-                    ))}
+                    {displayDates.map(dateStr => {
+                      const isSunday = parseLocalDate(dateStr).getDay() === 0;
+                      return (
+                        <td key={dateStr} className="border border-transparent" style={{ borderLeft: isSunday ? '4px solid #ef4444' : undefined }}></td>
+                      );
+                    })}
                     <td className="border border-transparent"></td>
                   </tr>
                   
@@ -6022,11 +6027,11 @@
                       const totalDaily = normalCount + tempCount;
                       const today = toDateStr(new Date());
                       const isToday = dateStr === today;
+                      const isSunday = parseLocalDate(dateStr).getDay() === 0;
                       return (
                         <td key={dateStr} className="p-1 border-2 border-green-500 bg-green-100 text-center align-middle"
                           style={{
-                            borderLeftWidth: isToday ? '6px' : undefined,
-                            borderLeftColor: isToday ? '#1e3a8a' : undefined
+                            borderLeft: isSunday ? '4px solid #ef4444' : (isToday ? '6px solid #1e3a8a' : undefined)
                           }}
                         >
                           <span className="font-bold text-xl text-green-800">{totalDaily}</span>
