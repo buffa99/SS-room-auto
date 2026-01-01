@@ -5757,12 +5757,15 @@
                     <td className="p-1 border-2 border-gray-400 bg-gray-50 min-w-[150px]"></td>
                   </tr>
                   {/* 実績数行 */}
-                  <tr className="bg-yellow-100">
+                  <tr className="bg-yellow-100" style={{height: '54px'}}>
+                    {/* 1. タイトルセル */}
                     <td className="p-2 border-2 border-gray-400 bg-yellow-200 font-bold text-xl text-gray-800 sticky left-0 z-10 text-center whitespace-nowrap" style={{width: '150px', minWidth: '150px'}}>
                       実績数
                     </td>
+
+                    {/* 2. 日ごとの実績集計（ループ） */}
                     {displayDates.map(dateStr => {
-                      // その日の全部屋の利用者数を合計
+                      // その日の全部屋の利用者数を合計（allocationsから計算）
                       const dailyCount = rooms.reduce((count, room) => {
                         const key = `${dateStr}-${room.id}`;
                         const occupants = allocations[key] || [];
@@ -5770,18 +5773,43 @@
                       }, 0);
                       const today = toDateStr(new Date());
                       const isToday = dateStr === today;
-                      const isSunday = parseLocalDate(dateStr).getDay() === 0;
+                      
                       return (
                         <td key={dateStr} className="p-1 border-2 border-gray-400 bg-yellow-100 text-center align-middle"
                           style={{
-                            borderLeft: isSunday ? '4px solid #ef4444' : (isToday ? '6px solid #1e3a8a' : undefined)
+                            borderLeftWidth: isToday ? '6px' : undefined,
+                            borderLeftColor: isToday ? '#1e3a8a' : undefined
                           }}
                         >
                           <span className="font-bold text-xl text-gray-800">{dailyCount}</span>
                         </td>
                       );
                     })}
-                    <td className="p-2 border-2 border-gray-400 bg-yellow-200 text-center min-w-[150px]"></td>
+
+                    {/* 3. 右端：合計実績と稼働率（ここが空欄だった箇所） */}
+                    <td className="p-2 border-2 border-gray-400 bg-yellow-200 text-center min-w-[150px]">
+                      {(() => {
+                        // 期間内の全実績数を計算
+                        const totalCount = displayDates.reduce((total, dateStr) => {
+                          return total + rooms.reduce((count, room) => {
+                            const key = `${dateStr}-${room.id}`;
+                            const occupants = allocations[key] || [];
+                            return count + occupants.length;
+                          }, 0);
+                        }, 0);
+                        
+                        // 稼働率の計算 (部屋数 × 日数)
+                        const maxCapacity = rooms.length * displayDates.length;
+                        const occupancyRate = maxCapacity > 0 ? ((totalCount / maxCapacity) * 100).toFixed(1) : 0;
+
+                        return (
+                          <div>
+                            <div className="font-bold text-2xl text-gray-800">{totalCount}</div>
+                            <div className="text-sm text-gray-600 font-bold">({occupancyRate}%)</div>
+                          </div>
+                        );
+                      })()}
+                    </td>
                   </tr>
                   {/* 一時保管部屋1 */}
                   <tr className="bg-orange-50" style={{height: '60px'}}>
