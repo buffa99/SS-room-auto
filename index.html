@@ -5457,6 +5457,22 @@
                         bgColor = '#9ca3af'; // gray-400
                         textColor = '#374151'; // gray-700
                       }
+
+                      // その日の利用者数を計算
+                      const dailyCount = rooms.reduce((count, room) => {
+                        const key = `${dateStr}-${room.id}`;
+                        const occupants = allocations[key] || [];
+                        return count + occupants.length;
+                      }, 0);
+
+                      // 人数に応じた色の上書き（警告・注意）
+                      if (dailyCount >= 12) {
+                        bgColor = '#b91c1c'; // 濃い赤
+                        textColor = '#ffffff'; // 白
+                      } else if (dailyCount === 11) {
+                        bgColor = '#facc15'; // 目立つ黄色
+                        textColor = '#000000'; // 黒
+                      }
                       
                       return (
                         <th key={dateStr} className={`p-1 border-2 border-gray-400 text-center ${cellWidth}`}
