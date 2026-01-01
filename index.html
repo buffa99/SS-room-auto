@@ -624,34 +624,29 @@
     // ========== 食事伝票関連の定数 ==========
     // 食種
     const MEAL_FOOD_TYPES = [
-      { key: 'normal_1400', label: '普通食Ⅰ(1400kcal)' },
-      { key: 'soft', label: '軟菜' },
-      { key: 'normal_1600', label: '普通食Ⅱ(1600kcal)' },
-      { key: 'diabetes', label: '糖尿病食' }, // kcal入力あり
-      { key: 'gastric_ulcer', label: '胃潰瘍食' },
+      { key: 'general_1200', label: '一般食(1200Kcal)' },
+      { key: 'general_1400', label: '一般食(1400Kcal)' },
+      { key: 'general_1600', label: '一般食(1600Kcal)' },
+      { key: 'diabetes', label: '糖尿病食' },
       { key: 'anemia', label: '貧血食' },
       { key: 'liver', label: '肝臓食' },
       { key: 'dyslipidemia', label: '脂質異常食' },
       { key: 'kidney', label: '腎臓食' },
-      { key: 'cardiac', label: '心高食(c1 5g以下)' },
-      { key: 'low_salt', label: '減塩食(c1 6g以下)' },
+      { key: 'cardiac', label: '心臓病食(塩分6g未満)' },
       { key: 'gastrostomy', label: '胃ろう' },
       { key: 'jelly', label: 'ゼリー食' },
-      { key: 'dysphagia', label: '嚥下食' },
     ];
     // 主食
     const MEAL_MAIN_DISH = [
       { key: 'rice', label: '米飯' },
       { key: 'soft_rice', label: '軟飯' },
-      { key: 'onigiri', label: 'おにぎり' },
       { key: 'porridge', label: '全粥' },
       { key: 'mousse_porridge', label: 'ムース粥' },
       { key: 'other', label: 'その他' },
     ];
     // 副食
     const MEAL_SIDE_DISH = [
-      { key: 'regular', label: '常菜' },
-      { key: 'soft', label: '軟菜' },
+      { key: 'regular', label: '常食' },
       { key: 'bite_size', label: '一口大' },
       { key: 'minced', label: '刻み' },
       { key: 'mousse', label: 'ムース' },
@@ -665,7 +660,7 @@
     // 間食
     const MEAL_SNACK = [
       { key: 'normal', label: '通常' },
-      { key: 'jelly', label: 'ゼリー対応' },
+      { key: 'thickened', label: 'トロミ' },
     ];
     // 食事タイミング
     const MEAL_TIMING = [
@@ -687,7 +682,7 @@
       { key: 'ss_repeater_vacancy', label: 'SS(リピーター：空床)' },
       { key: 'ss_new_tree', label: 'SS(新規：樹)' },
       { key: 'ss_new_vacancy', label: 'SS(新規：空床)' },
-      { key: 'ss_change', label: 'SS変更(〇前⇒後)' },
+      { key: 'ss_change', label: 'SS変更' },
       { key: 'ss_stop', label: 'SS食止め' },
     ];
 
@@ -1083,7 +1078,9 @@
         // 送迎データ
         transport: { pickupTime: '', dropoffTime: '', address: '', pickupMethod: '', wheelchairNeeded: false, note: '' },
         // 居宅介護支援事業所
-        careManager: { officeName: '', staffName: '', phone: '', fax: '', mobile: '' }
+        careManager: { officeName: '', staffName: '', phone: '', fax: '', mobile: '' },
+        // 食事情報（デフォルト）
+        mealPref: { foodType: '', mainDish: '', sideDish: '', drink: '', snack: '', allergy: '' }
       });
       
       const [selectionStart, setSelectionStart] = useState(null);
@@ -1588,13 +1585,10 @@
               <tr>
                 <th>理由</th>
                 <td colspan="5">
-                  <span class="option-item"><span class="checkbox ${ticket.reason === 'ss_repeater_tree' ? 'checked' : ''}"></span>SS(リピーター：樹)</span>
-                  <span class="option-item"><span class="checkbox ${ticket.reason === 'ss_repeater_vacancy' ? 'checked' : ''}"></span>SS(リピーター：空床)</span>
-                  <span class="option-item"><span class="checkbox ${ticket.reason === 'ss_new_tree' ? 'checked' : ''}"></span>SS(新規：樹)</span>
-                  <span class="option-item"><span class="checkbox ${ticket.reason === 'ss_new_vacancy' ? 'checked' : ''}"></span>SS(新規：空床)</span>
-                  <br>
-                  <span class="option-item"><span class="checkbox ${ticket.reason === 'ss_change' ? 'checked' : ''}"></span>SS変更(〇前⇒後)</span>
-                  <span class="option-item"><span class="checkbox ${ticket.reason === 'ss_stop' ? 'checked' : ''}"></span>SS食止め</span>
+                  ${MEAL_REASON.map((r, i) => `
+                    <span class="option-item"><span class="checkbox ${ticket.reason === r.key ? 'checked' : ''}"></span>${r.label}</span>
+                    ${i === 3 ? '<br>' : ''}
+                  `).join('')}
                 </td>
               </tr>
             </table>
@@ -2504,6 +2498,7 @@
         
         // 新しい利用期間がある場合、食事伝票作成を確認
         if (newPeriods.length > 0) {
+          const defaultMealPref = savedUser.mealPref || {};
           const firstPeriod = newPeriods[0];
           if (window.confirm(`利用期間 ${firstPeriod.start} ～ ${firstPeriod.end} の食事伝票を作成しますか？`)) {
             setEditingMealTicket({
@@ -2515,15 +2510,15 @@
               endMeal: '',
               category: '',
               reason: '',
-              foodType: '',
+              foodType: defaultMealPref.foodType || '',
               diabetesKcal: '',
-              mainDish: '',
+              mainDish: defaultMealPref.mainDish || '',
               mainDishOther: '',
-              sideDish: '',
+              sideDish: defaultMealPref.sideDish || '',
               sideDishOther: '',
-              drink: '',
-              snack: '',
-              memo: ''
+              drink: defaultMealPref.drink || '',
+              snack: defaultMealPref.snack || '',
+              memo: defaultMealPref.allergy ? `アレルギー: ${defaultMealPref.allergy}` : ''
             });
             setShowMealTicketModal(true);
           }
@@ -2562,7 +2557,8 @@
           bathType: user.bathType || '',
           medical: user.medical || { insulin: false, gastrostomy: false, oxygenTherapy: false },
           transport: user.transport || { pickupTime: '', dropoffTime: '', address: '', pickupMethod: '', wheelchairNeeded: false, note: '' },
-          careManager: user.careManager || { officeName: '', staffName: '', phone: '', fax: '', mobile: '' }
+          careManager: user.careManager || { officeName: '', staffName: '', phone: '', fax: '', mobile: '' },
+          mealPref: user.mealPref || { foodType: '', mainDish: '', sideDish: '', drink: '', snack: '', allergy: '' }
         });
         // 利用日がある場合、最初の利用月にカレンダーを移動
         if (user.stayDates && user.stayDates.length > 0) {
@@ -3641,6 +3637,8 @@
                       if (existingTicket) {
                         setEditingMealTicket(existingTicket);
                       } else {
+                        const user = users.find(u => u.id === editingMealTicket.userId);
+                        const defaultMealPref = user?.mealPref || {};
                         setEditingMealTicket({
                           ...editingMealTicket,
                           startDate: start,
@@ -3650,15 +3648,15 @@
                           endMeal: '',
                           category: '',
                           reason: '',
-                          foodType: '',
+                          foodType: defaultMealPref.foodType || '',
                           diabetesKcal: '',
-                          mainDish: '',
+                          mainDish: defaultMealPref.mainDish || '',
                           mainDishOther: '',
-                          sideDish: '',
+                          sideDish: defaultMealPref.sideDish || '',
                           sideDishOther: '',
-                          drink: '',
-                          snack: '',
-                          memo: ''
+                          drink: defaultMealPref.drink || '',
+                          snack: defaultMealPref.snack || '',
+                          memo: defaultMealPref.allergy ? `アレルギー: ${defaultMealPref.allergy}` : ''
                         });
                       }
                     }}
@@ -4145,6 +4143,7 @@
                               if (existingTicket) {
                                 setEditingMealTicket(existingTicket);
                               } else {
+                                const defaultMealPref = user.mealPref || {};
                                 setEditingMealTicket({
                                   userId: user.id,
                                   startDate: periodStart,
@@ -4154,15 +4153,15 @@
                                   endMeal: '',
                                   category: '',
                                   reason: '',
-                                  foodType: '',
+                                  foodType: defaultMealPref.foodType || '',
                                   diabetesKcal: '',
-                                  mainDish: '',
+                                  mainDish: defaultMealPref.mainDish || '',
                                   mainDishOther: '',
-                                  sideDish: '',
+                                  sideDish: defaultMealPref.sideDish || '',
                                   sideDishOther: '',
-                                  drink: '',
-                                  snack: '',
-                                  memo: ''
+                                  drink: defaultMealPref.drink || '',
+                                  snack: defaultMealPref.snack || '',
+                                  memo: defaultMealPref.allergy ? `アレルギー: ${defaultMealPref.allergy}` : ''
                                 });
                               }
                               setShowMealTicketModal(true);
@@ -4202,7 +4201,8 @@
                       bathType: '',
                       medical: { insulin: false, gastrostomy: false, oxygenTherapy: false },
                       transport: { pickupTime: '', dropoffTime: '', address: '', pickupMethod: '', wheelchairNeeded: false, note: '' },
-                      careManager: { officeName: '', staffName: '', phone: '', fax: '', mobile: '' }
+                      careManager: { officeName: '', staffName: '', phone: '', fax: '', mobile: '' },
+                      mealPref: { foodType: '', mainDish: '', sideDish: '', drink: '', snack: '', allergy: '' }
                     });
                     setCalendarMonth(currentMonth); // カレンダー月をリセット
                   }}
@@ -4236,7 +4236,8 @@
                           bathType: '',
                           medical: { insulin: false, gastrostomy: false, oxygenTherapy: false },
                           transport: { pickupTime: '', dropoffTime: '', address: '', pickupMethod: '', wheelchairNeeded: false, note: '' },
-                          careManager: { officeName: '', staffName: '', phone: '', fax: '', mobile: '' }
+                          careManager: { officeName: '', staffName: '', phone: '', fax: '', mobile: '' },
+                          mealPref: { foodType: '', mainDish: '', sideDish: '', drink: '', snack: '', allergy: '' }
                         });
                         setCalendarMonth(currentMonth);
                       }} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
@@ -4597,6 +4598,84 @@
                       </div>
                     </div>
 
+                    {/* 食事情報（デフォルト） */}
+                    <div className="mb-3 p-3 bg-orange-50 rounded border border-orange-200">
+                      <p className="text-xs font-bold text-orange-700 mb-2">🍽️ 食事情報（デフォルト）:</p>
+                      {/* 食種 */}
+                      <div className="mb-2">
+                        <label className="text-xs text-gray-600 block mb-1">食種</label>
+                        <select
+                          value={newUserData.mealPref?.foodType || ''}
+                          onChange={(e) => setNewUserData({...newUserData, mealPref: {...(newUserData.mealPref || {}), foodType: e.target.value}})}
+                          className="w-full p-1 border rounded bg-white text-xs"
+                        >
+                          <option value="">未設定</option>
+                          {MEAL_FOOD_TYPES.map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
+                        </select>
+                      </div>
+                      {/* 主食・副食 */}
+                      <div className="grid grid-cols-2 gap-2 mb-2">
+                        <div>
+                          <label className="text-xs text-gray-600 block mb-1">主食</label>
+                          <select
+                            value={newUserData.mealPref?.mainDish || ''}
+                            onChange={(e) => setNewUserData({...newUserData, mealPref: {...(newUserData.mealPref || {}), mainDish: e.target.value}})}
+                            className="w-full p-1 border rounded bg-white text-xs"
+                          >
+                            <option value="">未設定</option>
+                            {MEAL_MAIN_DISH.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-600 block mb-1">副食</label>
+                          <select
+                            value={newUserData.mealPref?.sideDish || ''}
+                            onChange={(e) => setNewUserData({...newUserData, mealPref: {...(newUserData.mealPref || {}), sideDish: e.target.value}})}
+                            className="w-full p-1 border rounded bg-white text-xs"
+                          >
+                            <option value="">未設定</option>
+                            {MEAL_SIDE_DISH.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                      {/* 飲み物・間食 */}
+                      <div className="grid grid-cols-2 gap-2 mb-2">
+                        <div>
+                          <label className="text-xs text-gray-600 block mb-1">飲み物</label>
+                          <select
+                            value={newUserData.mealPref?.drink || ''}
+                            onChange={(e) => setNewUserData({...newUserData, mealPref: {...(newUserData.mealPref || {}), drink: e.target.value}})}
+                            className="w-full p-1 border rounded bg-white text-xs"
+                          >
+                            <option value="">未設定</option>
+                            {MEAL_DRINK.map(d => <option key={d.key} value={d.key}>{d.label}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-600 block mb-1">間食</label>
+                          <select
+                            value={newUserData.mealPref?.snack || ''}
+                            onChange={(e) => setNewUserData({...newUserData, mealPref: {...(newUserData.mealPref || {}), snack: e.target.value}})}
+                            className="w-full p-1 border rounded bg-white text-xs"
+                          >
+                            <option value="">未設定</option>
+                            {MEAL_SNACK.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                      {/* アレルギー */}
+                      <div>
+                        <label className="text-xs text-gray-600 block mb-1">アレルギー・禁食</label>
+                        <input
+                          type="text"
+                          value={newUserData.mealPref?.allergy || ''}
+                          onChange={(e) => setNewUserData({...newUserData, mealPref: {...(newUserData.mealPref || {}), allergy: e.target.value}})}
+                          className="w-full p-1 border rounded bg-white text-xs"
+                          placeholder="例: そば、エビ"
+                        />
+                      </div>
+                    </div>
+
                     {/* 食事伝票一覧（編集時のみ表示・当月分） */}
                     {editingUser && editingUser.stayDates && editingUser.stayDates.length > 0 && (
                       <div className="mb-3 p-3 bg-green-50 rounded border border-green-200">
@@ -4636,6 +4715,7 @@
                                       if (existingTicket) {
                                         setEditingMealTicket(existingTicket);
                                       } else {
+                                        const defaultMealPref = editingUser.mealPref || {};
                                         setEditingMealTicket({
                                           userId: editingUser.id,
                                           startDate: periodStart,
@@ -4645,15 +4725,15 @@
                                           endMeal: '',
                                           category: '',
                                           reason: '',
-                                          foodType: '',
+                                          foodType: defaultMealPref.foodType || '',
                                           diabetesKcal: '',
-                                          mainDish: '',
+                                          mainDish: defaultMealPref.mainDish || '',
                                         mainDishOther: '',
-                                          sideDish: '',
+                                          sideDish: defaultMealPref.sideDish || '',
                                         sideDishOther: '',
-                                          drink: '',
-                                          snack: '',
-                                          memo: ''
+                                          drink: defaultMealPref.drink || '',
+                                          snack: defaultMealPref.snack || '',
+                                          memo: defaultMealPref.allergy ? `アレルギー: ${defaultMealPref.allergy}` : ''
                                         });
                                       }
                                       setShowMealTicketModal(true);
