@@ -1080,7 +1080,9 @@
         // 居宅介護支援事業所
         careManager: { officeName: '', staffName: '', phone: '', fax: '', mobile: '' },
         // 食事情報（デフォルト）
-        mealPref: { foodType: '', mainDish: '', sideDish: '', drink: '', snack: '', allergy: '' }
+        mealPref: { foodType: '', mainDish: '', sideDish: '', drink: '', snack: '', allergy: '' },
+        // ロング利用
+        isLongTerm: false, longTermStartDate: '', longTermEndDate: ''
       });
       
       const [selectionStart, setSelectionStart] = useState(null);
@@ -2406,13 +2408,27 @@
       const handleSaveUser = () => {
         if (!newUserData.name) return;
 
+        // 保存用データの準備（ロング利用の場合は日付を自動生成）
+        let dataToSave = { ...newUserData };
+        if (dataToSave.isLongTerm && dataToSave.longTermStartDate) {
+          const start = dataToSave.longTermStartDate;
+          let end = dataToSave.longTermEndDate;
+          if (!end) {
+            // 終了日未定の場合は開始日から2年後を設定
+            const d = parseLocalDate(start);
+            d.setFullYear(d.getFullYear() + 2);
+            end = toDateStr(d);
+          }
+          dataToSave.stayDates = getDatesInRange(start, end);
+        }
+
         let savedUser;
         let updatedUsers;
         let newPeriods = []; // 新しく追加された利用期間
 
         if (editingUser) {
           const oldPeriods = getStayPeriods(editingUser.stayDates);
-          const currentPeriods = getStayPeriods(newUserData.stayDates);
+          const currentPeriods = getStayPeriods(dataToSave.stayDates);
           
           // 新しい期間を検出（既存の伝票がない期間）
           currentPeriods.forEach(period => {
@@ -2427,26 +2443,26 @@
           
           updatedUsers = users.map(u => {
             if (u.id === editingUser.id) {
-              const datesChanged = JSON.stringify(u.stayDates.sort()) !== JSON.stringify(newUserData.stayDates.sort());
-              const bathTypeChanged = u.bathType !== newUserData.bathType;
-              const schedule = (datesChanged || bathTypeChanged) ? calculateInitialSchedule(newUserData.stayDates, newUserData.bathType) : u.schedule;
-              savedUser = { ...newUserData, id: u.id, schedule };
+              const datesChanged = JSON.stringify(u.stayDates.sort()) !== JSON.stringify(dataToSave.stayDates.sort());
+              const bathTypeChanged = u.bathType !== dataToSave.bathType;
+              const schedule = (datesChanged || bathTypeChanged) ? calculateInitialSchedule(dataToSave.stayDates, dataToSave.bathType) : u.schedule;
+              savedUser = { ...dataToSave, id: u.id, schedule };
               return savedUser;
             }
             return u;
           });
         } else {
           savedUser = { 
-            ...newUserData, 
+            ...dataToSave, 
             id: Date.now(),
-            schedule: calculateInitialSchedule(newUserData.stayDates, newUserData.bathType),
+            schedule: calculateInitialSchedule(dataToSave.stayDates, dataToSave.bathType),
             createdAt: new Date().toISOString(),
             isArchived: false
           };
           updatedUsers = [...users, savedUser];
           
           // 新規ユーザーの場合、全期間が新規
-          const periods = getStayPeriods(newUserData.stayDates);
+          const periods = getStayPeriods(dataToSave.stayDates);
           newPeriods = periods.map(p => ({ start: p[0], end: p[p.length-1], userId: savedUser.id }));
         }
         
@@ -2562,7 +2578,8 @@
           },
           transport: user.transport || { pickupTime: '', dropoffTime: '', address: '', pickupMethod: '', wheelchairNeeded: false, note: '' },
           careManager: user.careManager || { officeName: '', staffName: '', phone: '', fax: '', mobile: '' },
-          mealPref: user.mealPref || { foodType: '', mainDish: '', sideDish: '', drink: '', snack: '', allergy: '' }
+          mealPref: user.mealPref || { foodType: '', mainDish: '', sideDish: '', drink: '', snack: '', allergy: '' },
+          isLongTerm: user.isLongTerm || false, longTermStartDate: user.longTermStartDate || '', longTermEndDate: user.longTermEndDate || ''
         });
         // 利用日がある場合、最初の利用月にカレンダーを移動
         if (user.stayDates && user.stayDates.length > 0) {
@@ -4094,7 +4111,10 @@
                     return sortedUsers.map(user => (
                       <div key={user.id} className="p-2 border rounded bg-gray-50 flex justify-between items-start group">
                         <div>
-                          <div className="font-bold text-gray-800">{user.name}</div>
+                          <div className="font-bold text-gray-800">
+                            {user.name}
+                            {user.isLongTerm && <span className="ml-1 text-[10px] bg-indigo-100 text-indigo-800 px-1 rounded border border-indigo-200">ロング</span>}
+                          </div>
                           <div className="flex flex-wrap gap-1 mt-1">
                             {user.conditions.map(c => {
                               const label = CONDITIONS.find(def => def.key === c)?.label;
@@ -4208,7 +4228,8 @@
                       medical: { insulin: false, gastrostomy: false, oxygenTherapy: false, balloonCatheter: false, stoma: false, note: '' },
                       transport: { pickupTime: '', dropoffTime: '', address: '', pickupMethod: '', wheelchairNeeded: false, note: '' },
                       careManager: { officeName: '', staffName: '', phone: '', fax: '', mobile: '' },
-                      mealPref: { foodType: '', mainDish: '', sideDish: '', drink: '', snack: '', allergy: '' }
+                      mealPref: { foodType: '', mainDish: '', sideDish: '', drink: '', snack: '', allergy: '' },
+                      isLongTerm: false, longTermStartDate: '', longTermEndDate: ''
                     });
                     setCalendarMonth(currentMonth); // カレンダー月をリセット
                   }}
@@ -4243,7 +4264,8 @@
                           medical: { insulin: false, gastrostomy: false, oxygenTherapy: false, balloonCatheter: false, stoma: false, note: '' },
                           transport: { pickupTime: '', dropoffTime: '', address: '', pickupMethod: '', wheelchairNeeded: false, note: '' },
                           careManager: { officeName: '', staffName: '', phone: '', fax: '', mobile: '' },
-                          mealPref: { foodType: '', mainDish: '', sideDish: '', drink: '', snack: '', allergy: '' }
+                          mealPref: { foodType: '', mainDish: '', sideDish: '', drink: '', snack: '', allergy: '' },
+                          isLongTerm: false, longTermStartDate: '', longTermEndDate: ''
                         });
                         setCalendarMonth(currentMonth);
                       }} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
@@ -4782,6 +4804,50 @@
                     )}
 
                     <div className="mb-4">
+                      {/* ロング利用設定 */}
+                      <div className="mb-2 p-2 bg-indigo-50 rounded border border-indigo-200">
+                        <label className="flex items-center gap-2 cursor-pointer mb-2">
+                          <input 
+                            type="checkbox" 
+                            checked={newUserData.isLongTerm || false}
+                            onChange={(e) => setNewUserData({...newUserData, isLongTerm: e.target.checked})}
+                            className="rounded text-indigo-600 w-4 h-4"
+                          />
+                          <span className="font-bold text-indigo-800 text-sm">ロング利用（終了日未定・長期）</span>
+                        </label>
+                        
+                        {newUserData.isLongTerm && (
+                          <div className="pl-6 space-y-2">
+                            <p className="text-xs text-indigo-600 mb-1">
+                              ※チェックを入れると、下のカレンダー選択は無視され、開始日から自動的に日付が登録されます。
+                            </p>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-xs font-bold text-gray-600 block mb-1">開始日 <span className="text-red-500">*</span></label>
+                                <input 
+                                  type="date" 
+                                  value={newUserData.longTermStartDate || ''}
+                                  onChange={(e) => setNewUserData({...newUserData, longTermStartDate: e.target.value})}
+                                  className="w-full p-1 border rounded text-sm bg-white"
+                                  required
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs font-bold text-gray-600 block mb-1">終了予定日 (任意)</label>
+                                <input 
+                                  type="date" 
+                                  value={newUserData.longTermEndDate || ''}
+                                  onChange={(e) => setNewUserData({...newUserData, longTermEndDate: e.target.value})}
+                                  className="w-full p-1 border rounded text-sm bg-white"
+                                  placeholder="未定"
+                                />
+                                <span className="text-[10px] text-gray-500 block">空欄＝未定（2年後まで自動設定）</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
                       <div className="flex justify-between items-end mb-2">
                         <p className="text-xs font-bold text-gray-600">利用日選択:</p>
                         <div className="flex gap-1">
