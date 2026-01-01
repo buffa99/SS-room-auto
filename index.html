@@ -1074,7 +1074,7 @@
         fixedRooms: {}, 
         bathType: '',
         // 医療情報
-        medical: { insulin: false, gastrostomy: false, oxygenTherapy: false },
+        medical: { insulin: false, gastrostomy: false, oxygenTherapy: false, balloonCatheter: false, stoma: false, note: '' },
         // 送迎データ
         transport: { pickupTime: '', dropoffTime: '', address: '', pickupMethod: '', wheelchairNeeded: false, note: '' },
         // 居宅介護支援事業所
@@ -2487,7 +2487,7 @@
           stayDates: [], 
           fixedRooms: {}, 
           bathType: '',
-          medical: { insulin: false, gastrostomy: false, oxygenTherapy: false },
+          medical: { insulin: false, gastrostomy: false, oxygenTherapy: false, balloonCatheter: false, stoma: false, note: '' },
           transport: { pickupTime: '', dropoffTime: '', address: '', pickupMethod: '', wheelchairNeeded: false, note: '' },
           careManager: { officeName: '', staffName: '', phone: '', fax: '', mobile: '' }
         });
@@ -2555,7 +2555,11 @@
           stayDates: user.stayDates,
           fixedRooms: user.fixedRooms || {},
           bathType: user.bathType || '',
-          medical: user.medical || { insulin: false, gastrostomy: false, oxygenTherapy: false },
+          medical: { 
+            insulin: false, gastrostomy: false, oxygenTherapy: false, 
+            balloonCatheter: false, stoma: false, note: '',
+            ...(user.medical || {}) 
+          },
           transport: user.transport || { pickupTime: '', dropoffTime: '', address: '', pickupMethod: '', wheelchairNeeded: false, note: '' },
           careManager: user.careManager || { officeName: '', staffName: '', phone: '', fax: '', mobile: '' },
           mealPref: user.mealPref || { foodType: '', mainDish: '', sideDish: '', drink: '', snack: '', allergy: '' }
@@ -4100,6 +4104,8 @@
                             {user.medical?.insulin && <span className="text-[10px] bg-red-100 text-red-800 px-1 rounded">💉ｲﾝｽﾘﾝ</span>}
                             {user.medical?.gastrostomy && <span className="text-[10px] bg-red-100 text-red-800 px-1 rounded">🔴胃ろう</span>}
                             {user.medical?.oxygenTherapy && <span className="text-[10px] bg-red-100 text-red-800 px-1 rounded">🫁酸素</span>}
+                            {user.medical?.balloonCatheter && <span className="text-[10px] bg-red-100 text-red-800 px-1 rounded">🎈バルン</span>}
+                            {user.medical?.stoma && <span className="text-[10px] bg-red-100 text-red-800 px-1 rounded">⭕ストマ</span>}
                           </div>
                           <div className="text-sm text-gray-600 mt-1">
                             利用日数: {user.stayDates.filter(d => d.startsWith(toDateStr(currentMonth).slice(0, 7))).length}日
@@ -4199,7 +4205,7 @@
                       stayDates: [], 
                       fixedRooms: {}, 
                       bathType: '',
-                      medical: { insulin: false, gastrostomy: false, oxygenTherapy: false },
+                      medical: { insulin: false, gastrostomy: false, oxygenTherapy: false, balloonCatheter: false, stoma: false, note: '' },
                       transport: { pickupTime: '', dropoffTime: '', address: '', pickupMethod: '', wheelchairNeeded: false, note: '' },
                       careManager: { officeName: '', staffName: '', phone: '', fax: '', mobile: '' },
                       mealPref: { foodType: '', mainDish: '', sideDish: '', drink: '', snack: '', allergy: '' }
@@ -4234,7 +4240,7 @@
                           stayDates: [], 
                           fixedRooms: {}, 
                           bathType: '',
-                          medical: { insulin: false, gastrostomy: false, oxygenTherapy: false },
+                          medical: { insulin: false, gastrostomy: false, oxygenTherapy: false, balloonCatheter: false, stoma: false, note: '' },
                           transport: { pickupTime: '', dropoffTime: '', address: '', pickupMethod: '', wheelchairNeeded: false, note: '' },
                           careManager: { officeName: '', staffName: '', phone: '', fax: '', mobile: '' },
                           mealPref: { foodType: '', mainDish: '', sideDish: '', drink: '', snack: '', allergy: '' }
@@ -4444,7 +4450,7 @@
                     {/* 医療情報 */}
                     <div className="mb-3 p-3 bg-red-50 rounded border border-red-200">
                       <p className="text-xs font-bold text-red-700 mb-2">🏥 医療情報:</p>
-                      <div className="flex flex-wrap gap-3">
+                      <div className="flex flex-wrap gap-3 mb-2">
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input 
                             type="checkbox" 
@@ -4472,7 +4478,32 @@
                           />
                           <span className="text-xs text-gray-700">在宅酸素</span>
                         </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={newUserData.medical?.balloonCatheter || false}
+                            onChange={(e) => setNewUserData({...newUserData, medical: {...newUserData.medical, balloonCatheter: e.target.checked}})}
+                            className="rounded text-red-600"
+                          />
+                          <span className="text-xs text-gray-700">バルンカテーテル</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={newUserData.medical?.stoma || false}
+                            onChange={(e) => setNewUserData({...newUserData, medical: {...newUserData.medical, stoma: e.target.checked}})}
+                            className="rounded text-red-600"
+                          />
+                          <span className="text-xs text-gray-700">ストマ</span>
+                        </label>
                       </div>
+                      <input 
+                        type="text" 
+                        placeholder="医療備考（自由記入）" 
+                        className="w-full p-2 border rounded bg-white text-sm"
+                        value={newUserData.medical?.note || ''}
+                        onChange={(e) => setNewUserData({...newUserData, medical: {...newUserData.medical, note: e.target.value}})}
+                      />
                     </div>
 
                     {/* 送迎データ */}
