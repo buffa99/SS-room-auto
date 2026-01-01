@@ -67,11 +67,14 @@
         border-collapse: collapse !important;
         margin-bottom: 10px !important;
       }
+      tr {
+        page-break-inside: avoid !important;
+      }
       th, td {
         border: 1px solid #444 !important;
         padding: 4px !important;
-        font-size: 10pt !important;
-        height: 45px !important;
+        font-size: 9pt !important;
+        height: 35px !important;
         vertical-align: middle !important;
         word-wrap: break-word;
       }
@@ -6116,7 +6119,7 @@
         {/* --- B. 印刷専用ビュー（新設） --- */}
         <div className="print-only">
           {/* 1枚目：本館（201-210号室） */}
-          <div className="print-page">
+          <div className="print-page" style={{ pageBreakAfter: 'always' }}>
             <h1 className="text-xl font-bold mb-2">{currentMonth.getFullYear()}年{currentMonth.getMonth() + 1}月 部屋割表</h1>
             <table className="w-full border-collapse border border-gray-600">
               <thead>
@@ -6206,15 +6209,44 @@
                       {rooms.reduce((count, room) => count + (allocations[`${dateStr}-${room.id}`] || []).length, 0)}
                     </td>
                   ))}
-                  <td></td>
+                  <td style={{textAlign: 'center', fontWeight: 'bold'}}>
+                    {(() => {
+                      const totalCount = displayDates.reduce((total, dateStr) => {
+                        return total + rooms.reduce((count, room) => {
+                          const key = `${dateStr}-${room.id}`;
+                          return count + (allocations[key]?.length || 0);
+                        }, 0);
+                      }, 0);
+                      const maxCapacity = rooms.length * displayDates.length;
+                      const occupancyRate = maxCapacity > 0 ? ((totalCount / maxCapacity) * 100).toFixed(1) : 0;
+                      return <div><div>{totalCount}</div><div style={{fontSize: '8pt'}}>({occupancyRate}%)</div></div>;
+                    })()}
+                  </td>
                 </tr>
+                {/* キャンセル待ち（1枚目に含める） */}
+                {customRows.map(customRow => (
+                  <tr key={customRow.id} style={{backgroundColor: '#fff7ed'}}>
+                    <td style={{textAlign: 'center', fontSize: '10pt'}}>{customRow.name}</td>
+                    {displayDates.map(dateStr => {
+                      const memo1 = customRowMemos[`${dateStr}-${customRow.id}-1`] || '';
+                      const memo2 = customRowMemos[`${dateStr}-${customRow.id}-2`] || '';
+                      return (
+                        <td key={dateStr} style={{verticalAlign: 'top', padding: '2px', fontSize: '8pt'}}>
+                          {memo1 && <div>{memo1}</div>}
+                          {memo2 && <div>{memo2}</div>}
+                        </td>
+                      );
+                    })}
+                    <td></td>
+                  </tr>
+                ))}
               </tfoot>
             </table>
           </div>
 
           {/* 2枚目：空床（改ページ後） */}
           {currentMonthTempRooms.length > 0 && (
-            <div className="print-page page-break-before-always mt-4">
+            <div className="print-page mt-4">
               <h1 className="text-xl font-bold mb-2">空床利用一覧</h1>
               <table className="w-full border-collapse border border-gray-600">
                 <thead>
@@ -6268,6 +6300,31 @@
                       </td>
                     ))}
                     <td></td>
+                  </tr>
+                  {/* 合計実績（2枚目に含める） */}
+                  <tr style={{backgroundColor: '#bbf7d0'}}>
+                    <td style={{textAlign: 'center', fontWeight: 'bold'}}>合計実績</td>
+                    {displayDates.map(dateStr => {
+                      const regularCount = rooms.reduce((count, room) => count + (allocations[`${dateStr}-${room.id}`] || []).length, 0);
+                      const tempCount = currentMonthTempRooms.reduce((count, tempRoom) => count + (allocations[`${dateStr}-${tempRoom.id}`] || []).length, 0);
+                      return (
+                        <td key={dateStr} style={{textAlign: 'center', fontWeight: 'bold'}}>
+                          {regularCount + tempCount}
+                        </td>
+                      );
+                    })}
+                    <td style={{textAlign: 'center', fontWeight: 'bold'}}>
+                      {(() => {
+                        let totalPeriodCount = 0;
+                        displayDates.forEach(dateStr => {
+                          totalPeriodCount += rooms.reduce((c, r) => c + (allocations[`${dateStr}-${r.id}`]?.length || 0), 0);
+                          totalPeriodCount += currentMonthTempRooms.reduce((c, r) => c + (allocations[`${dateStr}-${r.id}`]?.length || 0), 0);
+                        });
+                        const maxCapacity = rooms.length * displayDates.length;
+                        const occupancyRate = maxCapacity > 0 ? ((totalPeriodCount / maxCapacity) * 100).toFixed(1) : 0;
+                        return <div><div>{totalPeriodCount}</div><div style={{fontSize: '8pt'}}>({occupancyRate}%)</div></div>;
+                      })()}
+                    </td>
                   </tr>
                 </tfoot>
               </table>
