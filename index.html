@@ -5550,6 +5550,10 @@
                                           onDragLeave={handleDragLeave}
                                           onDrop={(e) => handleDrop(e, userId, dateStr)}
                                           onContextMenu={(e) => handleContextMenu(e, userId, dateStr, room.id)}
+                                          onDoubleClick={(e) => {
+                                            e.stopPropagation();
+                                            handleEditUser(user);
+                                          }}
                                           className={`
                                             flex-1 p-0.5 text-[10px] font-bold border-b border-gray-100 last:border-b-0 flex flex-col justify-center text-center overflow-hidden relative transition-colors cursor-grab active:cursor-grabbing group/cell
                                             ${userBgColor} ${userTextColor}
@@ -5797,6 +5801,10 @@
                                   onDragStart={(e) => handleUserDragStart(e, userId, dateStr, TEMP_ROOM_1_ID)}
                                   onDragEnd={handleUserDragEnd}
                                   onContextMenu={(e) => handleContextMenu(e, userId, dateStr, TEMP_ROOM_1_ID)}
+                                  onDoubleClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditUser(user);
+                                  }}
                                   className="flex-1 p-1 text-xs font-bold bg-orange-300 text-orange-900 text-center cursor-grab active:cursor-grabbing border-b border-orange-400 last:border-b-0"
                                   title="ドラッグで部屋移動 / 右クリックで移動先選択"
                                 >
@@ -5852,6 +5860,10 @@
                                   onDragStart={(e) => handleUserDragStart(e, userId, dateStr, TEMP_ROOM_2_ID)}
                                   onDragEnd={handleUserDragEnd}
                                   onContextMenu={(e) => handleContextMenu(e, userId, dateStr, TEMP_ROOM_2_ID)}
+                                  onDoubleClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditUser(user);
+                                  }}
                                   className="flex-1 p-1 text-xs font-bold bg-orange-300 text-orange-900 text-center cursor-grab active:cursor-grabbing border-b border-orange-400 last:border-b-0"
                                   title="ドラッグで部屋移動 / 右クリックで移動先選択"
                                 >
@@ -6155,6 +6167,11 @@
                                     onDragStart={(e) => handleUserDragStart(e, occupants[0], dateStr, tempRoom.id)}
                                     onDragEnd={handleUserDragEnd}
                                     onContextMenu={(e) => handleContextMenu(e, occupants[0], dateStr, tempRoom.id)}
+                                    onDoubleClick={(e) => {
+                                      e.stopPropagation();
+                                      const user = users.find(u => u.id === occupants[0]);
+                                      if (user) handleEditUser(user);
+                                    }}
                                     className="w-full text-xs font-bold text-gray-800 text-center cursor-grab active:cursor-grabbing"
                                     title="ドラッグで部屋移動 / 右クリックで移動先選択"
                                   >
