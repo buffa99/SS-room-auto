@@ -1085,6 +1085,10 @@
         isLongTerm: false, longTermStartDate: '', longTermEndDate: ''
       });
       
+      // 部屋固定編集用の一時ステート
+      const [tempFixedPeriod, setTempFixedPeriod] = useState('');
+      const [tempFixedRoomId, setTempFixedRoomId] = useState('');
+
       const [selectionStart, setSelectionStart] = useState(null);
       const [calendarMonth, setCalendarMonth] = useState(currentMonth); // カレンダー選択用の月
       const [userSortOrder, setUserSortOrder] = useState('asc'); // 'asc' = 昇順(あ→ん), 'desc' = 降順(ん→あ)
@@ -2582,6 +2586,8 @@
           isLongTerm: user.isLongTerm || false, longTermStartDate: user.longTermStartDate || '', longTermEndDate: user.longTermEndDate || ''
         });
         // 利用日がある場合、最初の利用月にカレンダーを移動
+        setTempFixedPeriod('');
+        setTempFixedRoomId('');
         if (user.stayDates && user.stayDates.length > 0) {
           const firstDate = [...user.stayDates].sort()[0];
           const firstDateObj = parseLocalDate(firstDate);
@@ -2635,29 +2641,43 @@
         const user = users.find(u => u.id === id);
         if (!user) return;
         
-        // 過去に利用記録があるかチェック
-        const hasAllocations = Object.values(allocations).some(arr => arr.includes(id));
-        
-        if (hasAllocations) {
-          // 利用記録がある場合はアーカイブ（非表示）にする
-          if(window.confirm('この利用者をリストから非表示にしますか？\n（カレンダー上の過去の利用記録は残ります）')) {
-            const newUsers = users.map(u => u.id === id ? { ...u, isArchived: true } : u);
-            if (isFirebaseEnabled && database) {
-              database.ref('data/' + STORAGE_KEY_USERS).set(newUsers);
-            } else {
-              setUsers(newUsers);
+        if(!window.confirm(`「${user.name}」を削除しますか？\n※削除すると、登録されている部屋割りや食事伝票もすべて消えます。`)) {
+          return;
+        }
+
+        // 1. 部屋割りデータのクリーンアップ
+        const newAllocations = { ...allocations };
+        Object.keys(newAllocations).forEach(key => {
+          if (newAllocations[key].includes(id)) {
+            newAllocations[key] = newAllocations[key].filter(uid => uid !== id);
+            if (newAllocations[key].length === 0) {
+              delete newAllocations[key];
             }
           }
+        });
+
+        // 2. 食事伝票のクリーンアップ
+        const newMealTickets = { ...mealTickets };
+        Object.keys(newMealTickets).forEach(key => {
+          if (newMealTickets[key] && newMealTickets[key].userId === id) {
+            delete newMealTickets[key];
+          }
+        });
+
+        // 3. ユーザーデータの削除
+        const newUsers = users.filter(u => u.id !== id);
+
+        // 4. 保存
+        if (isFirebaseEnabled && database) {
+          const updates = {};
+          updates[`data/${STORAGE_KEY_USERS}`] = newUsers;
+          updates[`data/${STORAGE_KEY_ALLOCATIONS}`] = newAllocations;
+          updates[`data/${STORAGE_KEY_MEAL_TICKETS}`] = newMealTickets;
+          database.ref().update(updates);
         } else {
-          // 利用記録がない場合は完全削除
-          if(window.confirm('この利用者を削除しますか？')) {
-            const newUsers = users.filter(u => u.id !== id);
-            if (isFirebaseEnabled && database) {
-              database.ref('data/' + STORAGE_KEY_USERS).set(newUsers);
-            } else {
-              setUsers(newUsers);
-            }
-          }
+          setUsers(newUsers);
+          setAllocations(newAllocations);
+          setMealTickets(newMealTickets);
         }
       };
 
@@ -4231,6 +4251,8 @@
                       mealPref: { foodType: '', mainDish: '', sideDish: '', drink: '', snack: '', allergy: '' },
                       isLongTerm: false, longTermStartDate: '', longTermEndDate: ''
                     });
+                    setTempFixedPeriod('');
+                    setTempFixedRoomId('');
                     setCalendarMonth(currentMonth); // カレンダー月をリセット
                   }}
                   className="w-full flex justify-center items-center gap-2 border-2 border-dashed border-gray-300 p-2 rounded text-gray-500 hover:border-blue-400 hover:text-blue-500 transition-colors"
@@ -4267,6 +4289,8 @@
                           mealPref: { foodType: '', mainDish: '', sideDish: '', drink: '', snack: '', allergy: '' },
                           isLongTerm: false, longTermStartDate: '', longTermEndDate: ''
                         });
+                        setTempFixedPeriod('');
+                        setTempFixedRoomId('');
                         setCalendarMonth(currentMonth);
                       }} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
                     </div>
@@ -4455,17 +4479,73 @@
 
                     <div className="mb-3">
                       <p className="text-xs font-bold text-gray-600 mb-1">🔒 部屋固定:</p>
-                      <p className="text-xs text-gray-500 bg-yellow-50 p-2 rounded border border-yellow-200">
-                        予定表で利用者を右クリックすると、その利用期間の部屋を固定できます。<br/>
-                        固定された利用は黄色で表示されます。
-                      </p>
-                      {newUserData.fixedRooms && Object.keys(newUserData.fixedRooms).length > 0 && (
-                        <div className="mt-2 text-xs">
-                          <span className="text-yellow-600 font-bold">現在の固定: </span>
+                      
+                      {/* 固定追加フォーム */}
+                      <div className="bg-gray-50 p-2 rounded border border-gray-200 mb-2">
+                        <div className="flex flex-col gap-2">
+                          <select 
+                            value={tempFixedPeriod} 
+                            onChange={(e) => setTempFixedPeriod(e.target.value)}
+                            className="p-1 border rounded text-xs w-full"
+                          >
+                            <option value="">期間を選択</option>
+                            {getStayPeriods(newUserData.stayDates).map((p) => {
+                              const key = `${p[0]}_${p[p.length-1]}`;
+                              return <option key={key} value={key}>{p[0]} ～ {p[p.length-1]}</option>;
+                            })}
+                          </select>
+                          <div className="flex gap-2">
+                            <select
+                              value={tempFixedRoomId}
+                              onChange={(e) => setTempFixedRoomId(e.target.value)}
+                              className="flex-1 p-1 border rounded text-xs"
+                            >
+                              <option value="">部屋を選択</option>
+                              {rooms.map(r => <option key={r.id} value={r.id}>{r.name} ({r.label || '通常'})</option>)}
+                            </select>
+                            <button
+                              onClick={() => {
+                                if (!tempFixedPeriod || !tempFixedRoomId) return;
+                                setNewUserData(prev => ({
+                                  ...prev,
+                                  fixedRooms: { ...(prev.fixedRooms || {}), [tempFixedPeriod]: tempFixedRoomId }
+                                }));
+                                setTempFixedPeriod('');
+                                setTempFixedRoomId('');
+                              }}
+                              disabled={!tempFixedPeriod || !tempFixedRoomId}
+                              className="bg-blue-500 text-white px-3 py-1 rounded text-xs font-bold disabled:bg-gray-300"
+                            >
+                              追加
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {newUserData.fixedRooms && Object.keys(newUserData.fixedRooms).length > 0 ? (
+                        <div className="mt-2 text-xs space-y-1">
+                          <span className="text-yellow-600 font-bold block">現在の固定: </span>
                           {Object.entries(newUserData.fixedRooms).map(([period, roomId]) => (
-                            <span key={period} className="bg-yellow-100 px-1 rounded mr-1">{period.replace('_', '〜')} → {roomId}号室</span>
+                            <div key={period} className="flex items-center justify-between bg-yellow-50 px-2 py-1 rounded border border-yellow-100">
+                              <span>{period.replace('_', '〜')} → {roomId}号室</span>
+                              <button
+                                onClick={() => {
+                                  setNewUserData(prev => {
+                                    const newFixed = { ...prev.fixedRooms };
+                                    delete newFixed[period];
+                                    return { ...prev, fixedRooms: newFixed };
+                                  });
+                                }}
+                                className="text-red-500 hover:text-red-700 font-bold ml-2"
+                                title="解除"
+                              >
+                                ✕
+                              </button>
+                            </div>
                           ))}
                         </div>
+                      ) : (
+                        <p className="text-xs text-gray-400 mt-1">固定設定はありません</p>
                       )}
                     </div>
 
