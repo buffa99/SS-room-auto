@@ -3567,6 +3567,32 @@
         }
       };
 
+      const handleDeleteCustomRow = (id) => {
+        if (customRows.length <= 1) return;
+        if (!window.confirm('この行を削除しますか？\n※入力されたメモも削除されます。')) return;
+        
+        saveHistory();
+        const newRows = customRows.filter(r => r.id !== id);
+        
+        // メモのクリーンアップ
+        const newMemos = { ...customRowMemos };
+        Object.keys(newMemos).forEach(key => {
+          if (key.includes(`-${id}-`)) {
+            delete newMemos[key];
+          }
+        });
+
+        if (isFirebaseEnabled && database) {
+          const updates = {};
+          updates[`data/${STORAGE_KEY_CUSTOM_ROWS}`] = newRows;
+          updates[`data/${STORAGE_KEY_CUSTOM_ROW_MEMOS}`] = newMemos;
+          database.ref().update(updates);
+        } else {
+          setCustomRows(newRows);
+          setCustomRowMemos(newMemos);
+        }
+      };
+
       if (!isLoaded) {
         return <div className="min-h-screen flex items-center justify-center text-gray-500">データを読み込み中...</div>;
       }
@@ -5724,7 +5750,17 @@
                   {customRows.map((customRow) => (
                     <tr key={customRow.id} className="bg-orange-50" style={{height: '40px'}}>
                       <td className="p-2 border-2 border-gray-400 bg-orange-200 font-bold text-sm text-center align-middle sticky left-0 z-30">
-                        {customRow.name}
+                        <div className="flex flex-col items-center gap-1">
+                          <span>{customRow.name}</span>
+                          {customRows.length > 1 && (
+                            <button
+                              onClick={() => handleDeleteCustomRow(customRow.id)}
+                              className="text-xs text-red-500 hover:text-red-700 bg-white border border-red-200 rounded px-1"
+                            >
+                              🗑️削除
+                            </button>
+                          )}
+                        </div>
                       </td>
                       {displayDates.map(dateStr => {
                         const memoKey1 = `${dateStr}-${customRow.id}-1`;
