@@ -1994,45 +1994,76 @@
         if (currentMonthDates.length === 0) return {};
 
         rooms.forEach(room => {
-            const assignedColors = new Map(); // userId -> colorIndex
-            let lastDayColors = new Set(); // 前日の利用者たちの色
+            // この部屋でのユーザーごとの色キャッシュ（期間中は同じ色を維持するため）
+            const userColorCache = new Map(); 
+            let lastDayLastColor = -1; // 前日の最後の人の色
 
-            // 1日ずつ走査して色を決定
             currentMonthDates.forEach(dateStr => {
-                const key = `${dateStr}-${room.id}`;
-                const currentUserIds = allocations[key] || [];
-                const currentDayColors = new Set();
+                let cellUserIds = allocations[`${dateStr}-${room.id}`] || [];
                 
-                currentUserIds.forEach(userId => {
-                    if (assignedColors.has(userId)) {
-                        // 既に色が決まっている人はその色を使う
-                        currentDayColors.add(assignedColors.get(userId));
+                // 【重要】描画時と同じルールでソート（退所する人が先＝上）
+                // これをしないと「上の人」の色が正しく判定できない
+                cellUserIds = [...cellUserIds].sort((a, b) => {
+                  const userA = users.find(u => u.id === a);
+                  const userB = users.find(u => u.id === b);
+                  if (!userA || !userB) return 0;
+                  const aIsLeaving = !userA.stayDates.includes(getNextDay(dateStr));
+                  const bIsLeaving = !userB.stayDates.includes(getNextDay(dateStr));
+                  return (aIsLeaving === bIsLeaving) ? 0 : aIsLeaving ? -1 : 1;
+                });
+
+                // この日の各ユーザーの色を決定
+                cellUserIds.forEach((userId, index) => {
+                    // 既に色が決まっている場合（連泊中）はそれを使う
+                    if (userColorCache.has(userId)) {
+                        // 何もしない
                     } else {
-                        // まだ色の決まっていない人（新規登場）
-                        // 「前日の色」かつ「当日既に割り当てられた色」以外の最小の番号を探す
+                        // 新しく色を決める（登場日）
+                        const usedColors = new Set();
+
+                        // 1. 同じ日のすぐ上の人（index - 1）の色と被らないようにする
+                        if (index > 0) {
+                            const upperUserId = cellUserIds[index - 1];
+                            if (userColorCache.has(upperUserId)) {
+                                usedColors.add(userColorCache.get(upperUserId));
+                            }
+                        }
+
+                        // 2. 前日の最後の人（隣接する過去の人）の色と被らないようにする
+                        // 自分が連泊でなく新規登場の場合のみチェック
+                        if (lastDayLastColor !== -1) {
+                            usedColors.add(lastDayLastColor);
+                        }
+
+                        // 空いている最小の色番号(0~3)を探す
                         let newColor = 0;
-                        while (lastDayColors.has(newColor) || currentDayColors.has(newColor)) {
+                        while (usedColors.has(newColor)) {
                             newColor++;
                         }
-                        // 4色で循環させる (0~3)
-                        const finalColor = newColor % 4; 
+                        // 4色で循環させる
+                        const finalColor = newColor % 4;
                         
-                        assignedColors.set(userId, finalColor);
-                        currentDayColors.add(finalColor);
+                        userColorCache.set(userId, finalColor);
                     }
                 });
-                
-                lastDayColors = currentDayColors;
+
+                // 次の日のために、この日の最後の人の色を記録
+                if (cellUserIds.length > 0) {
+                    const lastUserId = cellUserIds[cellUserIds.length - 1];
+                    lastDayLastColor = userColorCache.get(lastUserId);
+                } else {
+                    lastDayLastColor = -1; // 誰もいなければリセット
+                }
             });
 
             // 結果をマップに保存
-            assignedColors.forEach((color, userId) => {
+            userColorCache.forEach((color, userId) => {
                 colorMap[`${room.id}-${userId}`] = color;
             });
         });
 
         return colorMap;
-      }, [allocations, rooms, currentMonthDates]);
+      }, [allocations, rooms, currentMonthDates, users]);
 
       // --- データエクスポート ---
       // --- PDF生成（食事伝票） ---
