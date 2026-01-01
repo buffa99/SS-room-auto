@@ -2518,7 +2518,9 @@
               foodType: '',
               diabetesKcal: '',
               mainDish: '',
+              mainDishOther: '',
               sideDish: '',
+              sideDishOther: '',
               drink: '',
               snack: '',
               memo: ''
@@ -3643,7 +3645,9 @@
                           foodType: '',
                           diabetesKcal: '',
                           mainDish: '',
+                          mainDishOther: '',
                           sideDish: '',
+                          sideDishOther: '',
                           drink: '',
                           snack: '',
                           memo: ''
@@ -3941,20 +3945,25 @@
                     キャンセル
                   </button>
                   <button
-                    onClick={() => {
-                      // 保存
-                      const ticketKey = `${editingMealTicket.userId}_${editingMealTicket.startDate}_${editingMealTicket.endDate}`;
-                      if (isFirebaseEnabled && database) {
-                        database.ref(`data/${STORAGE_KEY_MEAL_TICKETS}/${ticketKey}`).set(editingMealTicket);
-                      } else {
-                        setMealTickets(prev => ({
-                          ...prev,
-                          [ticketKey]: editingMealTicket
-                        }));
+                    onClick={async () => {
+                      try {
+                        // 保存
+                        const ticketKey = `${editingMealTicket.userId}_${editingMealTicket.startDate}_${editingMealTicket.endDate}`;
+                        if (isFirebaseEnabled && database) {
+                          await database.ref(`data/${STORAGE_KEY_MEAL_TICKETS}/${ticketKey}`).set(editingMealTicket);
+                        } else {
+                          setMealTickets(prev => ({
+                            ...prev,
+                            [ticketKey]: editingMealTicket
+                          }));
+                        }
+                        setShowMealTicketModal(false);
+                        setEditingMealTicket(null);
+                        alert('食事伝票を保存しました');
+                      } catch (e) {
+                        console.error('保存エラー:', e);
+                        alert('保存に失敗しました: ' + e.message);
                       }
-                      setShowMealTicketModal(false);
-                      setEditingMealTicket(null);
-                      alert('食事伝票を保存しました');
                     }}
                     className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 rounded font-bold"
                   >
@@ -4138,7 +4147,9 @@
                                   foodType: '',
                                   diabetesKcal: '',
                                   mainDish: '',
+                                  mainDishOther: '',
                                   sideDish: '',
+                                  sideDishOther: '',
                                   drink: '',
                                   snack: '',
                                   memo: ''
@@ -4627,7 +4638,9 @@
                                           foodType: '',
                                           diabetesKcal: '',
                                           mainDish: '',
+                                        mainDishOther: '',
                                           sideDish: '',
+                                        sideDishOther: '',
                                           drink: '',
                                           snack: '',
                                           memo: ''
