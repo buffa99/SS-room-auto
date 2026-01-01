@@ -403,6 +403,11 @@
       };
       const toDotPath = (p) => stripDataPrefix(p).split("/").filter(Boolean).join(".");
 
+      // ドット記法でネストされたオブジェクトの値を取得するヘルパー
+      const getDeepValue = (obj, path) => {
+        return path.split('.').reduce((acc, part) => (acc && acc[part] !== undefined) ? acc[part] : undefined, obj);
+      };
+
       class Ref {
         constructor(path) {
           this.path = norm(path);
@@ -445,14 +450,22 @@
         }
         // 既存コードの handleRoomDrop で transaction が使われているため追加
         transaction(updateFn) {
-          return docRef.get().then(doc => {
+          const dot = toDotPath(this.path);
+          
+          // Firestoreの正規のトランザクションを使用
+          return docRef.firestore.runTransaction(async (t) => {
+            const doc = await t.get(docRef);
             const raw = doc.data() || {};
-            const dot = toDotPath(this.path);
-            const current = dot ? raw[dot] : raw;
+            // ネストされた値を取得（存在しない場合は null とする ※RTDBの挙動に合わせる）
+            const current = dot ? (getDeepValue(raw, dot) ?? null) : raw;
+            
             const next = updateFn(current);
+            
             if (next !== undefined) {
-              return dot ? docRef.update({ [dot]: next }) : docRef.set(next, { merge: true });
+              // dotがある場合は update、ルートの場合は set(merge)
+              t.update(docRef, dot ? { [dot]: next } : next);
             }
+            return { committed: true, snapshot: { val: () => next } };
           });
         }
       }
