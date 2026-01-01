@@ -555,6 +555,7 @@
     const Download = (props) => <IconWrapper {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></IconWrapper>;
     const Upload = (props) => <IconWrapper {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></IconWrapper>;
     const Search = (props) => <IconWrapper {...props}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></IconWrapper>;
+    const RotateCcw = (props) => <IconWrapper {...props}><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></IconWrapper>;
 
     // メモ入力用コンポーネント（パフォーマンス最適化：onBlurで保存）
     const MemoInput = ({ value, onSave, className, placeholder }) => {
@@ -1065,6 +1066,7 @@
       lastBackup, exportData, importData,
       recalculateAllData, recalculateAllSchedules,
       setShowSettings, setShowLogoutConfirm,
+      undo, canUndo,
       fileInputRef
     }) => {
       return (
@@ -1180,6 +1182,19 @@
               </div>
             </div>
             <div className="flex gap-2 items-center flex-wrap justify-end">
+              <button 
+                onClick={undo}
+                disabled={!canUndo}
+                className={`flex items-center gap-1 px-3 py-2 rounded font-bold shadow transition-colors text-sm ${
+                  canUndo 
+                    ? 'bg-gray-700 hover:bg-gray-800 text-white' 
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+                title="直前の操作を元に戻す"
+              >
+                <RotateCcw size={16} />
+                元に戻す
+              </button>
               {/* バックアップ警告 */}
               {(() => {
                 const daysSinceBackup = lastBackup 
@@ -1596,6 +1611,53 @@
       const [archiveStats, setArchiveStats] = useState(null);
       const tableContainerRef = React.useRef(null);
       
+      // 履歴管理（Undo用）
+      const [history, setHistory] = useState([]);
+      
+      const saveHistory = () => {
+        const snapshot = {
+          users: JSON.parse(JSON.stringify(users)),
+          allocations: JSON.parse(JSON.stringify(allocations)),
+          memos: JSON.parse(JSON.stringify(memos)),
+          rooms: JSON.parse(JSON.stringify(rooms)),
+          tempRooms: JSON.parse(JSON.stringify(tempRooms)),
+          mealTickets: JSON.parse(JSON.stringify(mealTickets)),
+          customRows: JSON.parse(JSON.stringify(customRows)),
+          customRowMemos: JSON.parse(JSON.stringify(customRowMemos))
+        };
+        setHistory(prev => [...prev.slice(-9), snapshot]); // 最大10件保存
+      };
+
+      const undo = () => {
+        if (history.length === 0) return;
+        if (!window.confirm('直前の操作を取り消して元に戻しますか？')) return;
+        
+        const prev = history[history.length - 1];
+        setHistory(curr => curr.slice(0, -1));
+        
+        setUsers(prev.users);
+        setAllocations(prev.allocations);
+        setMemos(prev.memos);
+        setRooms(prev.rooms);
+        setTempRooms(prev.tempRooms);
+        setMealTickets(prev.mealTickets);
+        setCustomRows(prev.customRows);
+        setCustomRowMemos(prev.customRowMemos);
+        
+        if (isFirebaseEnabled && database) {
+          const updates = {};
+          updates[`data/${STORAGE_KEY_USERS}`] = prev.users;
+          updates[`data/${STORAGE_KEY_ALLOCATIONS}`] = prev.allocations;
+          updates[`data/${STORAGE_KEY_MEMOS}`] = prev.memos;
+          updates[`data/${STORAGE_KEY_ROOMS}`] = prev.rooms;
+          updates[`data/${STORAGE_KEY_TEMP_ROOMS}`] = prev.tempRooms;
+          updates[`data/${STORAGE_KEY_MEAL_TICKETS}`] = prev.mealTickets;
+          updates[`data/${STORAGE_KEY_CUSTOM_ROWS}`] = prev.customRows;
+          updates[`data/${STORAGE_KEY_CUSTOM_ROW_MEMOS}`] = prev.customRowMemos;
+          database.ref().update(updates);
+        }
+      };
+
       // 食事伝票関連のstate
       const [mealTickets, setMealTickets] = useState({}); // { "userId_startDate_endDate": {...} }
       const [showMealTicketModal, setShowMealTicketModal] = useState(false);
@@ -2323,6 +2385,7 @@
             const data = JSON.parse(event.target.result);
             if (data.users && data.allocations) {
               if (window.confirm('現在のデータを上書きしますか？')) {
+                saveHistory();
                 setUsers(data.users);
                 setAllocations(data.allocations);
                 setMemos(data.memos || {});
@@ -2474,6 +2537,8 @@
           }
         }
 
+        saveHistory();
+
         if (isFirebaseEnabled && database) {
           // Firebaseモード：トランザクションで安全にallocationsを更新
           const allocationsRef = database.ref('data/' + STORAGE_KEY_ALLOCATIONS);
@@ -2616,6 +2681,8 @@
           }
         }
 
+        saveHistory();
+
         if (isFirebaseEnabled && database) {
           // Firebaseモード：トランザクションで安全にallocationsを更新
           const allocationsRef = database.ref('data/' + STORAGE_KEY_ALLOCATIONS);
@@ -2671,6 +2738,8 @@
         if (!dragItem) return;
         if (dragItem.userId !== targetUserId) return;
         if (dragItem.date === targetDate) return;
+
+        saveHistory();
 
         const targetUserIndex = users.findIndex(u => u.id === targetUserId);
         if (targetUserIndex === -1) return;
@@ -2909,6 +2978,8 @@
           }
         }
 
+        saveHistory();
+
         // 保存用データの準備（ロング利用の場合は日付を自動生成）
         let dataToSave = { ...newUserData };
         if (dataToSave.isLongTerm && dataToSave.longTermStartDate) {
@@ -3142,6 +3213,8 @@
           return;
         }
 
+        saveHistory();
+
         // 1. 部屋割りデータのクリーンアップ
         const newAllocations = { ...allocations };
         Object.keys(newAllocations).forEach(key => {
@@ -3184,6 +3257,8 @@
           return;
         }
         
+        saveHistory();
+
         const updatedUsers = users.map(user => ({
           ...user,
           schedule: calculateInitialSchedule(user.stayDates, user.bathType || '')
@@ -3203,6 +3278,8 @@
           return;
         }
         
+        saveHistory();
+
         // 1. 入浴スケジュールを再計算
         const updatedUsers = users.map(user => ({
           ...user,
@@ -3404,6 +3481,7 @@
 
       const handleMemoChange = (dateStr, roomId, value) => {
         const key = `${dateStr}-${roomId}`;
+        saveHistory();
         if (isFirebaseEnabled && database) {
           // Firebaseが有効な場合は、特定のメモだけを更新する
           database.ref(`data/${STORAGE_KEY_MEMOS}/${key}`).set(value);
@@ -3415,6 +3493,7 @@
 
       const clearAllData = () => {
         if(window.confirm('全てのデータを削除して初期状態に戻しますか？')) {
+          saveHistory();
           db.remove(STORAGE_KEY_USERS);
           db.remove(STORAGE_KEY_ALLOCATIONS); // ローカルはクリア
           db.remove(STORAGE_KEY_MEMOS); // ローカルはクリア
@@ -3539,6 +3618,8 @@
             recalculateAllSchedules={recalculateAllSchedules}
             setShowSettings={setShowSettings}
             setShowLogoutConfirm={setShowLogoutConfirm}
+            undo={undo}
+            canUndo={history.length > 0}
             fileInputRef={fileInputRef}
           />
 
@@ -3915,6 +3996,7 @@
                   <button
                     onClick={() => {
                       if (isFirebaseEnabled && database) {
+                        saveHistory();
                         database.ref('data/' + STORAGE_KEY_ROOMS).set(editingRooms);
                       } else {
                         setRooms(editingRooms);
@@ -3931,6 +4013,7 @@
                   <button
                     onClick={() => {
                       if (window.confirm('部屋条件を初期状態に戻しますか？')) {
+                        saveHistory();
                         setEditingRooms(JSON.parse(JSON.stringify(INITIAL_ROOMS)));
                       }
                     }}
@@ -4011,6 +4094,7 @@
                       <button
                         onClick={async () => {
                           if (window.confirm(`この伝票（${editingMealTicket.startDate}〜${editingMealTicket.endDate}）を削除しますか？`)) {
+                            saveHistory();
                             const ticketKey = `${editingMealTicket.userId}_${editingMealTicket.startDate}_${editingMealTicket.endDate}`;
                             
                             if (isFirebaseEnabled && database) {
@@ -4365,6 +4449,7 @@
                   <button
                     onClick={async () => {
                       try {
+                        saveHistory();
                         // 保存
                         const ticketKey = `${editingMealTicket.userId}_${editingMealTicket.startDate}_${editingMealTicket.endDate}`;
                         if (isFirebaseEnabled && database) {
@@ -4391,6 +4476,7 @@
                     onClick={() => {
                       // PDF出力
                       const ticketKey = `${editingMealTicket.userId}_${editingMealTicket.startDate}_${editingMealTicket.endDate}`;
+                      saveHistory();
                       // 先に保存
                       setMealTickets(prev => ({
                         ...prev,
@@ -5491,6 +5577,7 @@
                                               onDragEnd={handleDragEnd}
                                               onClick={(e) => {
                                                 e.stopPropagation();
+                                                saveHistory();
                                                 if (!daySchedule.mustBath) {
                                                   // mustBath以外は削除可能
                                                   setUsers(users.map(u => {
@@ -5516,6 +5603,7 @@
                                           ) : (
                                             <button
                                               onClick={(e) => {
+                                                saveHistory();
                                                 e.stopPropagation();
                                                 const newUsers = users.map(u => {
                                                   if (u.id === userId) {
@@ -5543,6 +5631,7 @@
                                               onDragEnd={handleDragEnd}
                                               onClick={(e) => {
                                                 e.stopPropagation();
+                                                saveHistory();
                                                 const newUsers = users.map(u => {
                                                   if (u.id === userId) {
                                                     const updatedUser = { ...u, schedule: { ...u.schedule } };
@@ -5563,6 +5652,7 @@
                                           ) : (
                                             <button
                                               onClick={(e) => {
+                                                saveHistory();
                                                 e.stopPropagation();
                                                 const newUsers = users.map(u => {
                                                   if (u.id === userId) {
@@ -5790,6 +5880,7 @@
                           <button
                             onClick={() => {
                               if (window.confirm(`「${customRow.name}」を削除しますか？`)) {
+                                saveHistory();
                                 const newRows = customRows.filter(r => r.id !== customRow.id);
                                 if (isFirebaseEnabled && database) {
                                   database.ref('data/' + STORAGE_KEY_CUSTOM_ROWS).set(newRows);
@@ -5860,6 +5951,7 @@
                         onClick={() => {
                           const name = window.prompt('追加する行の名前を入力してください', '');
                           if (name && name.trim()) {
+                            saveHistory();
                             const newId = `custom_${Date.now()}`;
                             const newRows = [...customRows, { id: newId, name: name.trim() }];
                             if (isFirebaseEnabled && database) {
@@ -5941,6 +6033,7 @@
                               onBlur={(e) => {
                                 const newName = e.target.value.trim();
                                 if (newName) {
+                                  saveHistory();
                                   const newTempRooms = tempRooms.map(r => 
                                     r.id === tempRoom.id ? { ...r, name: newName } : r
                                   );
@@ -5976,6 +6069,7 @@
                             <button
                               onClick={() => {
                                 if (window.confirm(`「${tempRoom.name}」を削除しますか？\n※割り当て済みの利用者は一時保管に移動します`)) {
+                                  saveHistory();
                                   // この部屋の割り当てを一時保管に移動
                                   const newAllocations = { ...allocations };
                                   Object.keys(allocations).forEach(key => {
@@ -6013,6 +6107,7 @@
                                   alert(`「${tempRoom.name}」は既に${nextMonth.getMonth() + 1}月にあります`);
                                   return;
                                 }
+                                saveHistory();
                                 const newId = `${TEMP_ROOM_PREFIX}${Date.now()}`;
                                 const newTempRooms = [...tempRooms, { id: newId, name: tempRoom.name, month: nextMonthStr }];
                                 if (isFirebaseEnabled && database) {
@@ -6207,6 +6302,7 @@
                     <td className="p-2 border border-gray-300 text-center">
                       <button
                         onClick={() => {
+                          saveHistory();
                           const newId = `${TEMP_ROOM_PREFIX}${Date.now()}`;
                           const monthStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
                           const roomNumber = currentMonthTempRooms.length + 1;
@@ -6290,6 +6386,7 @@
                     return isFixed ? (
                       <button
                         onClick={() => {
+                          saveHistory();
                           const newUsers = users.map(u => {
                             if (u.id === contextMenu.userId) {
                               const newFixedRooms = { ...u.fixedRooms };
@@ -6316,6 +6413,7 @@
                     ) : (
                       <button
                         onClick={() => {
+                          saveHistory();
                           const newUsers = users.map(u => {
                             if (u.id === contextMenu.userId) {
                               const newFixedRooms = { ...(u.fixedRooms || {}), [periodKey]: contextMenu.fromRoomId };
