@@ -1990,29 +1990,44 @@
 
       // パフォーマンス改善：部屋ごとの利用者の色（0:ピンク, 1:スカイブルー）を事前に一括計算
       const roomUserColors = React.useMemo(() => {
-        const colorMap = {}; // キー: "roomId-userId", 値: 0 or 1
+        const colorMap = {}; // キー: "roomId-userId", 値: colorIndex (0~3)
         if (currentMonthDates.length === 0) return {};
 
         rooms.forEach(room => {
-            const userAppearanceOrder = new Map(); // この部屋でユーザーが初めて現れた順序を記録
-            let orderCounter = 0;
+            const assignedColors = new Map(); // userId -> colorIndex
+            let lastDayColors = new Set(); // 前日の利用者たちの色
 
-            // 月初から月末まで走査して、利用者が初めて現れた順に番号を付ける
+            // 1日ずつ走査して色を決定
             currentMonthDates.forEach(dateStr => {
                 const key = `${dateStr}-${room.id}`;
-                const userIds = allocations[key] || [];
+                const currentUserIds = allocations[key] || [];
+                const currentDayColors = new Set();
                 
-                userIds.forEach(userId => {
-                    if (!userAppearanceOrder.has(userId)) {
-                        userAppearanceOrder.set(userId, orderCounter % 2);
-                        orderCounter++;
+                currentUserIds.forEach(userId => {
+                    if (assignedColors.has(userId)) {
+                        // 既に色が決まっている人はその色を使う
+                        currentDayColors.add(assignedColors.get(userId));
+                    } else {
+                        // まだ色の決まっていない人（新規登場）
+                        // 「前日の色」かつ「当日既に割り当てられた色」以外の最小の番号を探す
+                        let newColor = 0;
+                        while (lastDayColors.has(newColor) || currentDayColors.has(newColor)) {
+                            newColor++;
+                        }
+                        // 4色で循環させる (0~3)
+                        const finalColor = newColor % 4; 
+                        
+                        assignedColors.set(userId, finalColor);
+                        currentDayColors.add(finalColor);
                     }
                 });
+                
+                lastDayColors = currentDayColors;
             });
 
             // 結果をマップに保存
-            userAppearanceOrder.forEach((colorIndex, userId) => {
-                colorMap[`${room.id}-${userId}`] = colorIndex;
+            assignedColors.forEach((color, userId) => {
+                colorMap[`${room.id}-${userId}`] = color;
             });
         });
 
@@ -5521,9 +5536,37 @@
                                     const currentPeriod = periods.find(p => p.includes(dateStr));
                                     const periodKey = currentPeriod ? `${currentPeriod[0]}_${currentPeriod[currentPeriod.length - 1]}` : '';
                                     const isFixedInPeriod = periodKey && user.fixedRooms && user.fixedRooms[periodKey];
-                                    // 部屋固定の利用者は黄色、それ以外はピンク/スカイブルー
-                                    const userBgColor = isFixedInPeriod ? 'bg-yellow-200' : (colorIndex === 0 ? 'bg-pink-200' : 'bg-sky-200');
-                                    const userTextColor = isFixedInPeriod ? 'text-yellow-800' : (colorIndex === 0 ? 'text-pink-800' : 'text-sky-800');
+                                    
+                                    // 色の定義（4色＋固定色）
+                                    let userBgColor = '';
+                                    let userTextColor = '';
+
+                                    if (isFixedInPeriod) {
+                                      userBgColor = 'bg-yellow-200';
+                                      userTextColor = 'text-yellow-800';
+                                    } else {
+                                      switch (colorIndex) {
+                                        case 0: // ピンク
+                                          userBgColor = 'bg-pink-200';
+                                          userTextColor = 'text-pink-800';
+                                          break;
+                                        case 1: // 青
+                                          userBgColor = 'bg-sky-200';
+                                          userTextColor = 'text-sky-800';
+                                          break;
+                                        case 2: // 緑
+                                          userBgColor = 'bg-green-200';
+                                          userTextColor = 'text-green-800';
+                                          break;
+                                        case 3: // オレンジ
+                                          userBgColor = 'bg-orange-200';
+                                          userTextColor = 'text-orange-800';
+                                          break;
+                                        default:
+                                          userBgColor = 'bg-gray-200';
+                                          userTextColor = 'text-gray-800';
+                                      }
+                                    }
                                     
                                     // 同日IN/OUT時の点線表示判定
                                     // 前の利用者が退室者で、現在の利用者が非退室者なら点線を入れる
