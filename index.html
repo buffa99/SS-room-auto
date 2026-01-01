@@ -4377,9 +4377,7 @@
                             [ticketKey]: editingMealTicket
                           }));
                         }
-                        setShowMealTicketModal(false);
-                        setEditingMealTicket(null);
-                        alert('食事伝票を保存しました');
+                        alert('保存しました。続けて編集やPDF出力ができます。');
                       } catch (e) {
                         console.error('保存エラー:', e);
                         alert('保存に失敗しました: ' + e.message);
