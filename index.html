@@ -5423,9 +5423,9 @@
               </h2>
 
               <table className={`w-full border-collapse text-xs ${displayDates.length > 14 ? 'min-w-[2000px]' : ''} print-hidden`}>
-                <thead className="sticky top-0 z-20">
+                <thead className="sticky top-0 z-40">
                   <tr>
-                    <th className="p-2 border-2 border-gray-400 bg-gray-100 text-center text-xl font-bold sticky left-0 z-30 shadow-sm" style={{width: '150px', minWidth: '150px'}}>部屋</th>
+                    <th className="p-2 border-2 border-gray-400 bg-gray-100 text-center text-xl font-bold sticky left-0 z-50 shadow-sm" style={{width: '150px', minWidth: '150px'}}>部屋</th>
                     {displayDates.map((dateStr, i) => {
                       const dateObj = parseLocalDate(dateStr);
                       const dayOfWeek = dateObj.getDay();
@@ -5494,7 +5494,7 @@
                 <tbody>
                   {rooms.map(room => (
                     <tr key={room.id} className={`hover:bg-gray-50 ${room.status === 'hospitalized' ? 'bg-yellow-100' : room.status === 'moved_out' ? 'bg-red-100' : ''}`}>
-                      <td className="p-1 border-2 border-gray-400 align-middle bg-white sticky left-0 z-10 shadow-sm text-center" style={{width: '150px', minWidth: '150px'}}>
+                      <td className="p-1 border-2 border-gray-400 align-middle bg-white sticky left-0 z-30 shadow-sm text-center" style={{width: '150px', minWidth: '150px'}}>
                         <div className="flex flex-col items-center">
                           <span className="font-bold text-3xl text-gray-800">{room.name}</span>
                           <div className="flex flex-wrap gap-1 mt-1 justify-center">
@@ -5793,61 +5793,66 @@
                   ))}
                 </tbody>
                 <tfoot>
-                  {/* 空行 */}
-                  <tr>
-                    <td className="p-1 border-2 border-gray-400 bg-gray-50"></td>
-                    {displayDates.map(dateStr => {
-                      const isSunday = parseLocalDate(dateStr).getDay() === 0;
-                      return (
-                        <td key={dateStr} className="p-1 border-2 border-gray-400 bg-gray-50" style={{ borderLeft: isSunday ? '4px solid #ef4444' : undefined }}></td>
-                      );
-                    })}
-                    <td className="p-1 border-2 border-gray-400 bg-gray-50 min-w-[150px]"></td>
-                  </tr>
-                  {/* 実績数行 */}
+                  {/* =========================================
+                      1. 本館実績数（黄色い行）
+                     ========================================= */}
                   <tr className="bg-yellow-100" style={{height: '54px'}}>
-                    {/* 1. タイトルセル */}
-                    <td className="p-2 border-2 border-gray-400 bg-yellow-200 font-bold text-xl text-gray-800 sticky left-0 z-10 text-center whitespace-nowrap" style={{width: '150px', minWidth: '150px'}}>
+                    <td className="p-2 border-2 border-gray-400 bg-yellow-200 font-bold text-xl text-gray-800 sticky left-0 z-30 text-center whitespace-nowrap" style={{width: '150px', minWidth: '150px'}}>
                       実績数
                     </td>
-
-                    {/* 2. 日ごとの実績集計（ループ） */}
                     {displayDates.map(dateStr => {
-                      // その日の全部屋の利用者数を合計（allocationsから計算）
                       const dailyCount = rooms.reduce((count, room) => {
                         const key = `${dateStr}-${room.id}`;
-                        const occupants = allocations[key] || [];
-                        return count + occupants.length;
+                        return count + (allocations[key]?.length || 0);
                       }, 0);
                       const today = toDateStr(new Date());
                       const isToday = dateStr === today;
+                      const isSunday = parseLocalDate(dateStr).getDay() === 0;
                       
                       return (
                         <td key={dateStr} className="p-1 border-2 border-gray-400 bg-yellow-100 text-center align-middle"
                           style={{
                             borderLeftWidth: isToday ? '6px' : undefined,
-                            borderLeftColor: isToday ? '#1e3a8a' : undefined
+                            borderLeftColor: isToday ? '#1e3a8a' : undefined,
+                            borderLeft: isSunday ? '4px solid #ef4444' : (isToday ? '6px solid #1e3a8a' : undefined)
                           }}
                         >
                           <span className="font-bold text-xl text-gray-800">{dailyCount}</span>
                         </td>
                       );
                     })}
-
-                    {/* 3. 右端：合計実績と稼働率（ここが空欄だった箇所） */}
+                    {/* 本館の期間合計・稼働率 */}
                     <td className="p-2 border-2 border-gray-400 bg-yellow-200 text-center min-w-[150px]">
-                      <span className="text-sm text-gray-600">本館計参照</span>
+                      {(() => {
+                        // 本館のみの集計
+                        const totalCount = displayDates.reduce((total, dateStr) => {
+                          return total + rooms.reduce((count, room) => {
+                            const key = `${dateStr}-${room.id}`;
+                            return count + (allocations[key]?.length || 0);
+                          }, 0);
+                        }, 0);
+                        
+                        // 稼働率 (定員は本館の部屋数基準)
+                        const maxCapacity = rooms.length * displayDates.length;
+                        const occupancyRate = maxCapacity > 0 ? ((totalCount / maxCapacity) * 100).toFixed(1) : 0;
+
+                        return (
+                          <div>
+                            <div className="font-bold text-2xl text-gray-800">{totalCount}</div>
+                            <div className="text-sm text-gray-600 font-bold">({occupancyRate}%)</div>
+                          </div>
+                        );
+                      })()}
                     </td>
                   </tr>
 
-                  {/* キャンセル待ちセクション（CustomRows） */}
+                  {/* =========================================
+                      2. 一時保管 / キャンセル待ちエリア（オレンジ）
+                     ========================================= */}
                   {customRows.map((customRow) => (
-                    <tr key={customRow.id} className="bg-sky-50" style={{height: '40px'}}>
-                      <td className="p-1 border border-gray-400 bg-sky-200 font-bold text-sm text-sky-800 sticky left-0 z-10 text-center" style={{width: '150px', minWidth: '150px'}}>
-                        <div className="flex flex-col items-center gap-0">
-                          <span className="text-xs">{customRow.name}</span>
-                          {/* 削除ボタン撤廃 */}
-                        </div>
+                    <tr key={customRow.id} className="bg-orange-50" style={{height: '40px'}}>
+                      <td className="p-2 border-2 border-gray-400 bg-orange-200 font-bold text-sm text-center align-middle sticky left-0 z-30">
+                        {customRow.name}
                       </td>
                       {displayDates.map(dateStr => {
                         const memoKey1 = `${dateStr}-${customRow.id}-1`;
@@ -5858,7 +5863,7 @@
                         return (
                           <td 
                             key={dateStr} 
-                            className="p-0 border border-gray-400 bg-white align-top"
+                            className="p-0 border border-gray-300 bg-orange-50 align-top"
                             style={{
                               borderLeft: isSunday ? '4px solid #ef4444' : (isToday ? '6px solid #1e3a8a' : undefined)
                             }}
@@ -5873,7 +5878,7 @@
                                     setCustomRowMemos(prev => ({...prev, [memoKey1]: val}));
                                   }
                                 }}
-                                className="w-full flex-1 p-0.5 text-xs bg-white outline-none text-gray-800 placeholder-gray-300 focus:bg-yellow-50 border-b border-gray-200"
+                                className="w-full flex-1 p-0.5 text-xs bg-orange-50 outline-none text-gray-800 placeholder-gray-300 focus:bg-yellow-50 border-b border-gray-200"
                                 placeholder=""
                               />
                               <MemoInput
@@ -5885,222 +5890,71 @@
                                     setCustomRowMemos(prev => ({...prev, [memoKey2]: val}));
                                   }
                                 }}
-                                className="w-full flex-1 p-0.5 text-xs bg-white outline-none text-gray-800 placeholder-gray-300 focus:bg-yellow-50"
+                                className="w-full flex-1 p-0.5 text-xs bg-orange-50 outline-none text-gray-800 placeholder-gray-300 focus:bg-yellow-50"
                                 placeholder=""
                               />
                             </div>
                           </td>
                         );
                       })}
-                      <td className="p-1 border border-gray-400 bg-sky-200 min-w-[150px] text-center"></td>
+                      <td className="border-2 border-gray-400 bg-orange-200"></td>
                     </tr>
                   ))}
-                  
-                  {/* キャンセル待ち追加ボタン */}
+                  {/* 追加ボタン */}
                   <tr>
-                    <td className="p-1 border-r-2 border-gray-400 sticky left-0 z-10 bg-white" style={{width: '150px', minWidth: '150px'}}>
+                    <td className="p-1 border-r-2 border-gray-400 sticky left-0 z-30 bg-white">
                       <button
                         onClick={handleAddCustomRow}
-                        className="w-full text-xs text-blue-600 hover:text-blue-800 font-bold py-1 bg-blue-50 rounded"
+                        className="w-full text-xs text-orange-600 hover:text-orange-800 font-bold py-1 bg-orange-50 rounded"
                       >
-                        ＋ キャンセル待ち追加
+                        ＋ 行を追加
                       </button>
                     </td>
                     <td colSpan={displayDates.length + 1} className="border-none"></td>
                   </tr>
 
-                  {/* 一時保管部屋1 */}
-                  <tr className="bg-orange-50" style={{height: '60px'}}>
-                    <td className="p-1 border-2 border-orange-400 bg-orange-200 font-bold text-sm text-orange-800 sticky left-0 z-10 text-center" style={{width: '150px', minWidth: '150px'}}>
-                      <div>一時保管①</div>
-                    </td>
-                      {displayDates.map(dateStr => {
-                      const tempKey = `${dateStr}-${TEMP_ROOM_1_ID}`;
-                      const tempOccupants = allocations[tempKey] || [];
-                      const isRoomDragOver = dragOverRoom === `${dateStr}-${TEMP_ROOM_1_ID}`;
-                      const today = toDateStr(new Date());
-                      const isToday = dateStr === today;
-                      const isSunday = parseLocalDate(dateStr).getDay() === 0;
-                      
-                      return (
-                        <td 
-                          key={dateStr} 
-                          className={`p-0 border-2 border-orange-400 align-top relative
-                            ${tempOccupants.length > 0 ? 'bg-orange-100' : 'bg-orange-50'}
-                            ${isRoomDragOver ? 'bg-yellow-100 border-dashed border-yellow-500' : ''}`}
-                          style={{
-                            borderLeft: isSunday ? '4px solid #ef4444' : (isToday ? '6px solid #1e3a8a' : undefined)
-                          }}
-                          onDragOver={(e) => handleRoomDragOver(e, dateStr, TEMP_ROOM_1_ID)}
-                          onDragLeave={handleRoomDragLeave}
-                          onDrop={(e) => handleRoomDrop(e, dateStr, TEMP_ROOM_1_ID)}
-                        >
-                          <div className="flex flex-col h-full">
-                            {tempOccupants.map((userId) => {
-                              const user = users.find(u => u.id === userId);
-                              if (!user) return null;
-                              return (
-                                <div 
-                                  key={userId}
-                                  draggable
-                                  onDragStart={(e) => handleUserDragStart(e, userId, dateStr, TEMP_ROOM_1_ID)}
-                                  onDragEnd={handleUserDragEnd}
-                                  onContextMenu={(e) => handleContextMenu(e, userId, dateStr, TEMP_ROOM_1_ID)}
-                                  onDoubleClick={(e) => {
-                                    e.stopPropagation();
-                                    handleEditUser(user);
-                                  }}
-                                  className="flex-1 p-1 text-xs font-bold bg-orange-300 text-orange-900 text-center cursor-grab active:cursor-grabbing border-b border-orange-400 last:border-b-0"
-                                  title="ドラッグで部屋移動 / 右クリックで移動先選択"
-                                >
-                                  {user.name}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </td>
-                      );
-                    })}
-                    <td className="p-1 border-2 border-orange-400 bg-orange-200 min-w-[150px] text-center text-orange-800 font-bold">
-                      {displayDates.reduce((count, dateStr) => {
-                        const tempKey = `${dateStr}-${TEMP_ROOM_1_ID}`;
-                        return count + (allocations[tempKey] || []).length;
-                      }, 0)}
-                    </td>
-                  </tr>
-                  {/* 一時保管部屋2 */}
-                  <tr className="bg-orange-50" style={{height: '60px'}}>
-                    <td className="p-1 border-2 border-orange-400 bg-orange-200 font-bold text-sm text-orange-800 sticky left-0 z-10 text-center" style={{width: '150px', minWidth: '150px'}}>
-                      <div>一時保管②</div>
-                    </td>
-                    {displayDates.map(dateStr => {
-                      const tempKey = `${dateStr}-${TEMP_ROOM_2_ID}`;
-                      const tempOccupants = allocations[tempKey] || [];
-                      const isRoomDragOver = dragOverRoom === `${dateStr}-${TEMP_ROOM_2_ID}`;
-                      const today = toDateStr(new Date());
-                      const isToday = dateStr === today;
-                      const isSunday = parseLocalDate(dateStr).getDay() === 0;
-                      
-                      return (
-                        <td 
-                          key={dateStr} 
-                          className={`p-0 border-2 border-orange-400 align-top relative
-                            ${tempOccupants.length > 0 ? 'bg-orange-100' : 'bg-orange-50'}
-                            ${isRoomDragOver ? 'bg-yellow-100 border-dashed border-yellow-500' : ''}`}
-                          style={{
-                            borderLeft: isSunday ? '4px solid #ef4444' : (isToday ? '6px solid #1e3a8a' : undefined)
-                          }}
-                          onDragOver={(e) => handleRoomDragOver(e, dateStr, TEMP_ROOM_2_ID)}
-                          onDragLeave={handleRoomDragLeave}
-                          onDrop={(e) => handleRoomDrop(e, dateStr, TEMP_ROOM_2_ID)}
-                        >
-                          <div className="flex flex-col h-full">
-                            {tempOccupants.map((userId) => {
-                              const user = users.find(u => u.id === userId);
-                              if (!user) return null;
-                              return (
-                                <div 
-                                  key={userId}
-                                  draggable
-                                  onDragStart={(e) => handleUserDragStart(e, userId, dateStr, TEMP_ROOM_2_ID)}
-                                  onDragEnd={handleUserDragEnd}
-                                  onContextMenu={(e) => handleContextMenu(e, userId, dateStr, TEMP_ROOM_2_ID)}
-                                  onDoubleClick={(e) => {
-                                    e.stopPropagation();
-                                    handleEditUser(user);
-                                  }}
-                                  className="flex-1 p-1 text-xs font-bold bg-orange-300 text-orange-900 text-center cursor-grab active:cursor-grabbing border-b border-orange-400 last:border-b-0"
-                                  title="ドラッグで部屋移動 / 右クリックで移動先選択"
-                                >
-                                  {user.name}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </td>
-                      );
-                    })}
-                    <td className="p-1 border-2 border-orange-400 bg-orange-200 min-w-[150px] text-center text-orange-800 font-bold">
-                      {displayDates.reduce((count, dateStr) => {
-                        const tempKey = `${dateStr}-${TEMP_ROOM_2_ID}`;
-                        return count + (allocations[tempKey] || []).length;
-                      }, 0)}
-                    </td>
-                  </tr>
-                  
-                  {/* スペーサー（空白行） */}
+                  {/* =========================================
+                      3. スペーサー（空白行）
+                     ========================================= */}
                   <tr style={{ height: '24px', border: 'none' }}>
-                    <td className="sticky left-0 z-10 bg-white border-none"></td>
+                    <td className="sticky left-0 z-30 bg-white border-none"></td>
                     <td colSpan={displayDates.length + 1} className="border-none"></td>
                   </tr>
 
-                  {/* 空床利用部屋（動的追加） */}
+                  {/* =========================================
+                      4. 空床エリア（紫）
+                     ========================================= */}
                   {currentMonthTempRooms.map((tempRoom, index) => (
                     <tr key={tempRoom.id} className="bg-purple-50" style={{height: '60px'}}>
-                      <td 
-                        className="p-1 border-2 border-purple-400 bg-purple-200 font-bold text-sm text-purple-800 sticky left-0 z-10 text-center align-middle" 
-                        style={{width: '150px', minWidth: '150px'}}
-                        onDoubleClick={() => handleRenameTempRoom(tempRoom.id, tempRoom.name)}
-                      >
+                      <td className="p-2 border-2 border-gray-400 bg-purple-100 font-bold text-sm text-center align-middle sticky left-0 z-30">
                         <div className="flex flex-col items-center gap-1">
                           <span>{tempRoom.name}</span>
                           <div className="flex gap-1">
                             <button 
                               onClick={() => handleRenameTempRoom(tempRoom.id, tempRoom.name)}
-                              className="text-[10px] bg-white border border-purple-400 rounded px-1 hover:bg-purple-100 text-purple-800"
-                              title="名前を変更"
+                              className="text-xs bg-white border border-gray-400 rounded px-1 hover:bg-gray-100"
                             >
                               ✏️編集
                             </button>
                             {index > 0 && (
-                          <button
-                            onClick={() => {
-                              // 1. 残り1枠のチェック（全削除防止）
-                              if (currentMonthTempRooms.length <= 1) {
-                                alert('空床枠がなくなるため、最後の1つは削除できません。\n（常に1枠は表示しておく必要があります）');
-                                return;
-                              }
-
-                              // 2. 利用者が残っているかチェック（データ不整合防止）
-                              const hasOccupants = Object.keys(allocations).some(key => {
-                                // key形式: "YYYY-MM-DD-ROOMID"
-                                return key.endsWith(`-${tempRoom.id}`) && allocations[key] && allocations[key].length > 0;
-                              });
-
-                              if (hasOccupants) {
-                                alert(`「${tempRoom.name}」には利用者が割り当てられています。\n削除する前に、利用者を他の部屋や一時保管へ移動させてください。`);
-                                return;
-                              }
-
-                              // 3. 問題なければ削除確認
-                              if (window.confirm(`「${tempRoom.name}」を削除しますか？`)) {
-                                saveHistory();
-                                const newTempRooms = tempRooms.filter(r => r.id !== tempRoom.id);
-                                
-                                // allocationsのクリーニング（念のため）
-                                const newAllocations = { ...allocations };
-                                Object.keys(newAllocations).forEach(key => {
-                                  if (key.endsWith(`-${tempRoom.id}`)) {
-                                    delete newAllocations[key];
+                              <button
+                                onClick={() => {
+                                  const hasOccupants = Object.keys(allocations).some(k => k.endsWith(`-${tempRoom.id}`) && allocations[k]?.length > 0);
+                                  if (hasOccupants) { alert('利用者がいるため削除できません'); return; }
+                                  if (confirm('削除しますか？')) {
+                                    saveHistory();
+                                    const newTempRooms = tempRooms.filter(r => r.id !== tempRoom.id);
+                                    if (isFirebaseEnabled && database) {
+                                      database.ref('data/' + STORAGE_KEY_TEMP_ROOMS).set(newTempRooms);
+                                    } else {
+                                      setTempRooms(newTempRooms);
+                                    }
                                   }
-                                });
-
-                                if (isFirebaseEnabled && database) {
-                                  const updates = {};
-                                  updates[`data/${STORAGE_KEY_TEMP_ROOMS}`] = newTempRooms;
-                                  updates[`data/${STORAGE_KEY_ALLOCATIONS}`] = newAllocations;
-                                  database.ref().update(updates);
-                                } else {
-                                  setTempRooms(newTempRooms);
-                                  setAllocations(newAllocations);
-                                }
-                              }
-                            }}
-                            className="text-[10px] text-red-500 hover:text-red-700 bg-white border border-red-200 rounded px-1"
-                            title="この空床部屋を削除"
-                          >
-                            🗑️削除
-                          </button>
+                                }}
+                                className="text-xs text-red-500 hover:text-red-700 bg-white border border-red-200 rounded px-1"
+                              >
+                                🗑️削除
+                              </button>
                             )}
                           </div>
                         </div>
@@ -6152,18 +6006,13 @@
                           </td>
                         );
                       })}
-                      <td className="p-1 border-2 border-purple-400 bg-purple-200 min-w-[150px] text-center text-purple-800 font-bold">
-                        {displayDates.reduce((count, dateStr) => {
-                          const tempKey = `${dateStr}-${tempRoom.id}`;
-                          return count + (allocations[tempKey] || []).length;
-                        }, 0)}
-                      </td>
+                      <td className="border-2 border-gray-400 bg-purple-100"></td>
                     </tr>
                   ))}
 
                   {/* 空床追加ボタン */}
                   <tr>
-                    <td className="p-1 border-r-2 border-gray-400 sticky left-0 z-10 bg-white" style={{width: '150px', minWidth: '150px'}}>
+                    <td className="p-1 border-r-2 border-gray-400 sticky left-0 z-30 bg-white">
                       <button
                         onClick={handleAddTempRoom}
                         className="w-full text-xs text-purple-600 hover:text-purple-800 font-bold py-1 bg-purple-50 rounded"
@@ -6180,9 +6029,11 @@
                     <td className="border border-transparent"></td>
                   </tr>
                   
-                  {/* 空床実績（新規） */}
+                  {/* =========================================
+                      5. 空床実績
+                     ========================================= */}
                   <tr className="bg-purple-100" style={{height: '40px'}}>
-                    <td className="p-2 border-2 border-gray-400 bg-purple-200 font-bold text-sm text-gray-800 sticky left-0 z-10 text-center">
+                    <td className="p-2 border-2 border-gray-400 bg-purple-200 font-bold text-sm text-gray-800 sticky left-0 z-30 text-center">
                       空床実績
                     </td>
                     {displayDates.map(dateStr => {
@@ -6196,21 +6047,21 @@
                         </td>
                       );
                     })}
-                    <td className="border-2 border-gray-400 bg-purple-200"></td>
+                    <td className="border-2 border-gray-400 bg-purple-200 text-center"></td>
                   </tr>
 
-                  {/* 合計実績（緑：本館＋空床） */}
+                  {/* =========================================
+                      6. 合計実績（緑：本館＋空床）
+                     ========================================= */}
                   <tr className="bg-green-100 h-16">
-                    <td className="p-2 border-2 border-gray-400 bg-green-300 font-bold text-xl text-gray-800 sticky left-0 z-10 text-center">
+                    <td className="p-2 border-2 border-gray-400 bg-green-300 font-bold text-xl text-gray-800 sticky left-0 z-30 text-center">
                       合計実績
                     </td>
                     {displayDates.map(dateStr => {
-                      // 本館の合計
                       const regularCount = rooms.reduce((count, room) => {
                         const key = `${dateStr}-${room.id}`;
                         return count + (allocations[key]?.length || 0);
                       }, 0);
-                      // 空床の合計
                       const tempCount = currentMonthTempRooms.reduce((count, tempRoom) => {
                         const key = `${dateStr}-${tempRoom.id}`;
                         return count + (allocations[key]?.length || 0);
@@ -6234,14 +6085,11 @@
                       );
                     })}
                     
-                    {/* 期間総合計と稼働率 */}
                     <td className="p-2 border-2 border-gray-400 bg-green-300 text-center min-w-[150px]">
                       {(() => {
                         let totalPeriodCount = 0;
                         displayDates.forEach(dateStr => {
-                          // 本館
                           totalPeriodCount += rooms.reduce((c, r) => c + (allocations[`${dateStr}-${r.id}`]?.length || 0), 0);
-                          // 空床
                           totalPeriodCount += currentMonthTempRooms.reduce((c, r) => c + (allocations[`${dateStr}-${r.id}`]?.length || 0), 0);
                         });
 
