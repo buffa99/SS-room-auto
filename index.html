@@ -744,7 +744,7 @@
     // ============================================
     // 認証コンポーネント
     // ============================================
-    function LoginScreen() {
+    function LoginScreen({ onLocalMode }) {
       const [email, setEmail] = useState('');
       const [password, setPassword] = useState('');
       const [showPassword, setShowPassword] = useState(false);
@@ -842,6 +842,14 @@
                 ) : (
                   'ログイン'
                 )}
+              </button>
+
+              <button
+                type="button"
+                onClick={onLocalMode}
+                className="w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 mt-4"
+              >
+                オフラインで使う (Local Mode)
               </button>
             </form>
 
@@ -1700,29 +1708,30 @@
         
         setIsLoaded(true);
 
-        // Firebaseリアルタイムリスナーの設定
-        if (isFirebaseEnabled && database) {
-          // データ変更のリアルタイム監視
-          const dataRef = database.ref('data');
-          dataRef.on('value', (snap) => {
-            const data = snap.val();
-            if (data) {
-              if (data[STORAGE_KEY_USERS]) setUsers(data[STORAGE_KEY_USERS]);
-              if (data[STORAGE_KEY_ALLOCATIONS]) setAllocations(data[STORAGE_KEY_ALLOCATIONS]);
-              if (data[STORAGE_KEY_MEMOS]) setMemos(data[STORAGE_KEY_MEMOS]);
-              if (data[STORAGE_KEY_ROOMS]) setRooms(data[STORAGE_KEY_ROOMS]);
-              if (data[STORAGE_KEY_TEMP_ROOMS]) setTempRooms(data[STORAGE_KEY_TEMP_ROOMS]);
-              if (data[STORAGE_KEY_MEAL_TICKETS]) setMealTickets(data[STORAGE_KEY_MEAL_TICKETS]);
-              if (data[STORAGE_KEY_CUSTOM_ROWS]) setCustomRows(data[STORAGE_KEY_CUSTOM_ROWS]);
-              if (data[STORAGE_KEY_CUSTOM_ROW_MEMOS]) setCustomRowMemos(data[STORAGE_KEY_CUSTOM_ROW_MEMOS]);
-            }
-          });
+        // Firebaseリアルタイムリスナー（ローカル優先のため無効化）
+        // ※ローカルでの作業中に、サーバー側の古いデータで上書きされるのを防ぐため
+        // if (isFirebaseEnabled && database) {
+        //   // データ変更のリアルタイム監視
+        //   const dataRef = database.ref('data');
+        //   dataRef.on('value', (snap) => {
+        //     const data = snap.val();
+        //     if (data) {
+        //       if (data[STORAGE_KEY_USERS]) setUsers(data[STORAGE_KEY_USERS]);
+        //       if (data[STORAGE_KEY_ALLOCATIONS]) setAllocations(data[STORAGE_KEY_ALLOCATIONS]);
+        //       if (data[STORAGE_KEY_MEMOS]) setMemos(data[STORAGE_KEY_MEMOS]);
+        //       if (data[STORAGE_KEY_ROOMS]) setRooms(data[STORAGE_KEY_ROOMS]);
+        //       if (data[STORAGE_KEY_TEMP_ROOMS]) setTempRooms(data[STORAGE_KEY_TEMP_ROOMS]);
+        //       if (data[STORAGE_KEY_MEAL_TICKETS]) setMealTickets(data[STORAGE_KEY_MEAL_TICKETS]);
+        //       if (data[STORAGE_KEY_CUSTOM_ROWS]) setCustomRows(data[STORAGE_KEY_CUSTOM_ROWS]);
+        //       if (data[STORAGE_KEY_CUSTOM_ROW_MEMOS]) setCustomRowMemos(data[STORAGE_KEY_CUSTOM_ROW_MEMOS]);
+        //     }
+        //   });
 
-          // クリーンアップ
-          return () => {
-            dataRef.off();
-          };
-        }
+        //   // クリーンアップ
+        //   return () => {
+        //     dataRef.off();
+        //   };
+        // }
       }, []);
 
       useEffect(() => {
@@ -2422,6 +2431,24 @@
 
         saveHistory();
 
+        // ローカル更新（即時反映）
+        const newAllocations = { ...allocations };
+        datesToMove.forEach(moveDate => {
+          const fromKey = `${moveDate}-${fromRoomId}`;
+          if (newAllocations[fromKey]) {
+            newAllocations[fromKey] = newAllocations[fromKey].filter(id => id !== userId);
+            if (newAllocations[fromKey].length === 0) {
+              delete newAllocations[fromKey];
+            }
+          }
+          const targetKey = `${moveDate}-${targetRoomId}`;
+          const currentTarget = newAllocations[targetKey] || [];
+          if (!currentTarget.includes(userId)) {
+            newAllocations[targetKey] = [...currentTarget, userId];
+          }
+        });
+        setAllocations(newAllocations);
+
         if (isFirebaseEnabled && database) {
           // Firebaseモード：トランザクションで安全にallocationsを更新
           const allocationsRef = database.ref('data/' + STORAGE_KEY_ALLOCATIONS);
@@ -2443,24 +2470,6 @@
             });
             return currentAllocations;
           });
-        } else {
-          // ローカルモード
-          const newAllocations = { ...allocations };
-          datesToMove.forEach(moveDate => {
-            const fromKey = `${moveDate}-${fromRoomId}`;
-            if (newAllocations[fromKey]) {
-              newAllocations[fromKey] = newAllocations[fromKey].filter(id => id !== userId);
-              if (newAllocations[fromKey].length === 0) {
-                delete newAllocations[fromKey];
-              }
-            }
-            const targetKey = `${moveDate}-${targetRoomId}`;
-            const currentTarget = newAllocations[targetKey] || [];
-            if (!currentTarget.includes(userId)) {
-              newAllocations[targetKey] = [...currentTarget, userId];
-            }
-          });
-          setAllocations(newAllocations);
         }
         closeContextMenu();
       };
@@ -2566,6 +2575,24 @@
 
         saveHistory();
 
+        // ローカル更新（即時反映）
+        const newAllocations = { ...allocations };
+        datesToMove.forEach(moveDate => {
+          const fromKey = `${moveDate}-${fromRoomId}`;
+          if (newAllocations[fromKey]) {
+            newAllocations[fromKey] = newAllocations[fromKey].filter(id => id !== userId);
+            if (newAllocations[fromKey].length === 0) {
+              delete newAllocations[fromKey];
+            }
+          }
+          const targetKey = `${moveDate}-${roomId}`;
+          const currentTarget = newAllocations[targetKey] || [];
+          if (!currentTarget.includes(userId)) {
+            newAllocations[targetKey] = [...currentTarget, userId];
+          }
+        });
+        setAllocations(newAllocations);
+
         if (isFirebaseEnabled && database) {
           // Firebaseモード：トランザクションで安全にallocationsを更新
           const allocationsRef = database.ref('data/' + STORAGE_KEY_ALLOCATIONS);
@@ -2592,24 +2619,6 @@
             });
             return currentAllocations; // 更新後のデータを返す
           });
-        } else {
-          // ローカルモード：直接stateを更新
-          const newAllocations = { ...allocations };
-          datesToMove.forEach(moveDate => {
-            const fromKey = `${moveDate}-${fromRoomId}`;
-            if (newAllocations[fromKey]) {
-              newAllocations[fromKey] = newAllocations[fromKey].filter(id => id !== userId);
-              if (newAllocations[fromKey].length === 0) {
-                delete newAllocations[fromKey];
-              }
-            }
-            const targetKey = `${moveDate}-${roomId}`;
-            const currentTarget = newAllocations[targetKey] || [];
-            if (!currentTarget.includes(userId)) {
-              newAllocations[targetKey] = [...currentTarget, userId];
-            }
-          });
-          setAllocations(newAllocations);
         }
         setDragUser(null);
       };
@@ -2659,10 +2668,11 @@
         newSchedule[targetDate] = targetDay;
 
         user.schedule = newSchedule;
+        
+        setUsers(newUsers); // ローカル更新
+
         if (isFirebaseEnabled && database) {
           database.ref('data/' + STORAGE_KEY_USERS).set(newUsers);
-        } else {
-          setUsers(newUsers);
         }
         setDragItem(null);
       };
@@ -2921,12 +2931,16 @@
           newPeriods = periods.map(p => ({ start: p[0], end: p[p.length-1], userId: savedUser.id }));
         }
         
-        if (isFirebaseEnabled && database) {
-          // Firebaseモード：usersとallocationsをアトミックに更新
-          const newAllocations = (savedUser && savedUser.stayDates.length > 0)
+        // ローカル更新（即時反映）
+        setUsers(updatedUsers);
+        const newAllocations = (savedUser && savedUser.stayDates.length > 0)
             ? allocateSingleUser(savedUser, allocations, updatedUsers)
             : allocations;
+        if (savedUser && savedUser.stayDates.length > 0) {
+          setAllocations(newAllocations);
+        }
 
+        if (isFirebaseEnabled && database) {
           const updates = {};
           updates[`data/${STORAGE_KEY_USERS}`] = updatedUsers;
           updates[`data/${STORAGE_KEY_ALLOCATIONS}`] = newAllocations;
@@ -2935,13 +2949,6 @@
             console.error('ユーザーと割り当ての更新に失敗しました: ', error);
             // ここでエラー処理（例：ユーザーに通知）を行うことができます
           });
-        } else {
-          // ローカルモード：stateを直接更新
-          setUsers(updatedUsers);
-          if (savedUser && savedUser.stayDates.length > 0) {
-            const newAllocations = allocateSingleUser(savedUser, allocations, updatedUsers);
-            setAllocations(newAllocations);
-          }
         }
         
         setNewUserData({ 
@@ -3103,10 +3110,10 @@
           u.id === id ? { ...u, isArchived: true } : u
         );
 
+        setUsers(newUsers); // ローカル更新
+
         if (isFirebaseEnabled && database) {
           database.ref('data/' + STORAGE_KEY_USERS).set(newUsers);
-        } else {
-          setUsers(newUsers);
         }
       };
 
@@ -3125,10 +3132,10 @@
           u.id === id ? { ...u, isArchived: false } : u
         );
 
+        setUsers(newUsers); // ローカル更新
+
         if (isFirebaseEnabled && database) {
           database.ref('data/' + STORAGE_KEY_USERS).set(newUsers);
-        } else {
-          setUsers(newUsers);
         }
         
         alert(`「${user.name}」をリストに戻しました`);
@@ -3166,6 +3173,11 @@
         // 3. ユーザーデータの削除
         const newUsers = users.filter(u => u.id !== id);
 
+        // ローカル更新
+        setUsers(newUsers);
+        setAllocations(newAllocations);
+        setMealTickets(newMealTickets);
+
         // 4. 保存
         if (isFirebaseEnabled && database) {
           const updates = {};
@@ -3173,10 +3185,6 @@
           updates[`data/${STORAGE_KEY_ALLOCATIONS}`] = newAllocations;
           updates[`data/${STORAGE_KEY_MEAL_TICKETS}`] = newMealTickets;
           database.ref().update(updates);
-        } else {
-          setUsers(newUsers);
-          setAllocations(newAllocations);
-          setMealTickets(newMealTickets);
         }
       };
 
@@ -3193,10 +3201,10 @@
           schedule: calculateInitialSchedule(user.stayDates, user.bathType || '')
         }));
         
+        setUsers(updatedUsers); // ローカル更新
+
         if (isFirebaseEnabled && database) {
           database.ref('data/' + STORAGE_KEY_USERS).set(updatedUsers);
-        } else {
-          setUsers(updatedUsers);
         }
         alert('全利用者のスケジュールを再計算しました！');
       };
@@ -3394,6 +3402,10 @@
           });
         });
 
+        // ローカル更新
+        setUsers(updatedUsers);
+        setAllocations(newAllocations);
+
         if (isFirebaseEnabled && database) {
           const updates = {};
           updates[`data/${STORAGE_KEY_USERS}`] = updatedUsers;
@@ -3401,9 +3413,6 @@
           database.ref().update(updates).catch(e => {
             console.error('全データ再計算の更新に失敗', e);
           });
-        } else {
-          setUsers(updatedUsers);
-          setAllocations(newAllocations);
         }
         alert('全データを再計算しました！\n（部屋割り＋入浴スケジュール）');
       };
@@ -3411,12 +3420,11 @@
       const handleMemoChange = (dateStr, roomId, value) => {
         const key = `${dateStr}-${roomId}`;
         saveHistory();
+        setMemos(prev => ({ ...prev, [key]: value })); // ローカル更新
+
         if (isFirebaseEnabled && database) {
           // Firebaseが有効な場合は、特定のメモだけを更新する
           database.ref(`data/${STORAGE_KEY_MEMOS}/${key}`).set(value);
-        } else {
-          // ローカルモードでは、直接stateを更新する
-          setMemos(prev => ({ ...prev, [key]: value }));
         }
       };
 
@@ -3525,10 +3533,10 @@
         if (newName && newName !== currentName) {
           saveHistory();
           const newTempRooms = tempRooms.map(r => r.id === id ? { ...r, name: newName } : r);
+          setTempRooms(newTempRooms); // ローカル更新
+
           if (isFirebaseEnabled && database) {
             database.ref('data/' + STORAGE_KEY_TEMP_ROOMS).set(newTempRooms);
-          } else {
-            setTempRooms(newTempRooms);
           }
         }
       };
@@ -3548,11 +3556,10 @@
         };
         
         const newTempRooms = [...tempRooms, newRoom];
+        setTempRooms(newTempRooms); // ローカル更新
         
         if (isFirebaseEnabled && database) {
           database.ref('data/' + STORAGE_KEY_TEMP_ROOMS).set(newTempRooms);
-        } else {
-          setTempRooms(newTempRooms);
         }
       };
 
@@ -3560,10 +3567,10 @@
         saveHistory();
         const newId = `custom_${Date.now()}`;
         const newRows = [...customRows, { id: newId, name: 'キャンセル待ち' }];
+        setCustomRows(newRows); // ローカル更新
+
         if (isFirebaseEnabled && database) {
           database.ref('data/' + STORAGE_KEY_CUSTOM_ROWS).set(newRows);
-        } else {
-          setCustomRows(newRows);
         }
       };
 
@@ -3582,14 +3589,15 @@
           }
         });
 
+        // ローカル更新
+        setCustomRows(newRows);
+        setCustomRowMemos(newMemos);
+
         if (isFirebaseEnabled && database) {
           const updates = {};
           updates[`data/${STORAGE_KEY_CUSTOM_ROWS}`] = newRows;
           updates[`data/${STORAGE_KEY_CUSTOM_ROW_MEMOS}`] = newMemos;
           database.ref().update(updates);
-        } else {
-          setCustomRows(newRows);
-          setCustomRowMemos(newMemos);
         }
       };
 
@@ -3923,6 +3931,7 @@
                     onClick={() => {
                       if (isFirebaseEnabled && database) {
                         saveHistory();
+                        setRooms(editingRooms); // ローカル更新
                         database.ref('data/' + STORAGE_KEY_ROOMS).set(editingRooms);
                       } else {
                         setRooms(editingRooms);
@@ -4023,16 +4032,17 @@
                             saveHistory();
                             const ticketKey = `${editingMealTicket.userId}_${editingMealTicket.startDate}_${editingMealTicket.endDate}`;
                             
+                            // ローカル更新
+                            setMealTickets(prev => {
+                              const newTickets = { ...prev };
+                              delete newTickets[ticketKey];
+                              return newTickets;
+                            });
+
                             if (isFirebaseEnabled && database) {
                               const updates = {};
                               updates[`data/${STORAGE_KEY_MEAL_TICKETS}/${ticketKey}`] = null;
                               await database.ref().update(updates);
-                            } else {
-                              setMealTickets(prev => {
-                                const newTickets = { ...prev };
-                                delete newTickets[ticketKey];
-                                return newTickets;
-                              });
                             }
                             setShowMealTicketModal(false);
                             setEditingMealTicket(null);
@@ -4378,15 +4388,17 @@
                         saveHistory();
                         // 保存
                         const ticketKey = `${editingMealTicket.userId}_${editingMealTicket.startDate}_${editingMealTicket.endDate}`;
+                        
+                        // ローカル更新
+                        setMealTickets(prev => ({
+                          ...prev,
+                          [ticketKey]: editingMealTicket
+                        }));
+
                         if (isFirebaseEnabled && database) {
                           const updates = {};
                           updates[`data/${STORAGE_KEY_MEAL_TICKETS}/${ticketKey}`] = editingMealTicket;
                           await database.ref().update(updates);
-                        } else {
-                          setMealTickets(prev => ({
-                            ...prev,
-                            [ticketKey]: editingMealTicket
-                          }));
                         }
                         alert('保存しました。続けて編集やPDF出力ができます。');
                       } catch (e) {
@@ -5575,7 +5587,7 @@
                                                   return updatedUser;
                                                     }
                                                     return u;
-                                              })); // ローカルの即時反映用
+                                              })); // ローカルの即時反映
                                               if (isFirebaseEnabled && database) {
                                                 // Firebaseに直接書き込み
                                                 const userIndex = users.findIndex(u => u.id === userId);
@@ -5601,11 +5613,10 @@
                                                   }
                                                   return u;
                                                 });
+                                                setUsers(newUsers); // ローカル更新
                                                 if (isFirebaseEnabled && database) {
                                                   // users全体を更新
                                                   database.ref('data/' + STORAGE_KEY_USERS).set(newUsers);
-                                                } else {
-                                                  setUsers(newUsers);
                                                 }
                                               }}
                                               className="text-[10px] text-blue-400 hover:text-blue-600 hover:bg-blue-100 rounded px-1 opacity-0 group-hover/cell:opacity-100 transition-opacity"
@@ -5628,11 +5639,10 @@
                                                   }
                                                   return u;
                                                 });
+                                                setUsers(newUsers); // ローカル更新
                                                 if (isFirebaseEnabled && database) {
                                                   // users全体を更新
                                                   database.ref('data/' + STORAGE_KEY_USERS).set(newUsers);
-                                                } else {
-                                                  setUsers(newUsers);
                                                 }
                                               }}
                                               className="text-2xl cursor-pointer hover:opacity-80 drop-shadow-md hover:bg-red-100 rounded" 
@@ -5650,10 +5660,9 @@
                                                   }
                                                   return u;
                                                 });
+                                                setUsers(newUsers); // ローカル更新
                                                 if (isFirebaseEnabled && database) {
                                                   database.ref('data/' + STORAGE_KEY_USERS).set(newUsers);
-                                                } else {
-                                                  setUsers(newUsers);
                                                 }
                                               }}
                                               className="text-[10px] text-green-400 hover:text-green-600 hover:bg-green-100 rounded px-1 opacity-0 group-hover/cell:opacity-100 transition-opacity"
@@ -5853,10 +5862,9 @@
                               <MemoInput
                                 value={customRowMemos[memoKey1] || ''}
                                 onSave={(val) => {
+                                  setCustomRowMemos(prev => ({...prev, [memoKey1]: val})); // ローカル更新
                                   if (isFirebaseEnabled && database) {
                                     database.ref(`data/${STORAGE_KEY_CUSTOM_ROW_MEMOS}/${memoKey1}`).set(val);
-                                  } else {
-                                    setCustomRowMemos(prev => ({...prev, [memoKey1]: val}));
                                   }
                                 }}
                                 className="w-full flex-1 p-0.5 text-xs bg-slate-50 outline-none text-gray-800 placeholder-gray-300 focus:bg-yellow-50 border-b border-gray-200"
@@ -5865,10 +5873,9 @@
                               <MemoInput
                                 value={customRowMemos[memoKey2] || ''}
                                 onSave={(val) => {
+                                  setCustomRowMemos(prev => ({...prev, [memoKey2]: val})); // ローカル更新
                                   if (isFirebaseEnabled && database) {
                                     database.ref(`data/${STORAGE_KEY_CUSTOM_ROW_MEMOS}/${memoKey2}`).set(val);
-                                  } else {
-                                    setCustomRowMemos(prev => ({...prev, [memoKey2]: val}));
                                   }
                                 }}
                                 className="w-full flex-1 p-0.5 text-xs bg-slate-50 outline-none text-gray-800 placeholder-gray-300 focus:bg-yellow-50"
@@ -5925,10 +5932,9 @@
                                   if (confirm('削除しますか？')) {
                                     saveHistory();
                                     const newTempRooms = tempRooms.filter(r => r.id !== tempRoom.id);
+                                    setTempRooms(newTempRooms); // ローカル更新
                                     if (isFirebaseEnabled && database) {
                                       database.ref('data/' + STORAGE_KEY_TEMP_ROOMS).set(newTempRooms);
-                                    } else {
-                                      setTempRooms(newTempRooms);
                                     }
                                   }
                                 }}
@@ -6383,10 +6389,9 @@
                             }
                             return u;
                           });
+                          setUsers(newUsers); // ローカル更新
                           if (isFirebaseEnabled && database) {
                             database.ref('data/' + STORAGE_KEY_USERS).set(newUsers);
-                          } else {
-                            setUsers(newUsers);
                           }
                           closeContextMenu();
                           alert(`${user.name}の部屋固定を解除しました\n（${periodLabel}）`);
@@ -6409,10 +6414,9 @@
                             }
                             return u;
                           });
+                          setUsers(newUsers); // ローカル更新
                           if (isFirebaseEnabled && database) {
                             database.ref('data/' + STORAGE_KEY_USERS).set(newUsers);
-                          } else {
-                            setUsers(newUsers);
                           }
                           closeContextMenu();
                           alert(`${user.name}を${contextMenu.fromRoomId}号室に固定しました\n（${periodLabel}）`);
@@ -6584,6 +6588,11 @@
         });
       };
 
+      const handleLocalMode = () => {
+        setIsAuthenticated(true);
+        setIsFirebaseReady(true);
+      };
+
       if (isChecking) {
         return (
           <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -6593,7 +6602,7 @@
       }
 
       if (!isAuthenticated) {
-        return <LoginScreen />;
+        return <LoginScreen onLocalMode={handleLocalMode} />;
       }
 
       // アプリ認証後、Firebase準備待ち
