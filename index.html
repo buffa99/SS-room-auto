@@ -1915,16 +1915,22 @@
                         // 新しく色を決める（登場日）
                         const usedColors = new Set();
 
-                        // 1. 同じ日のすぐ上の人（index - 1）の色と被らないようにする
-                        if (index > 0) {
-                            const upperUserId = cellUserIds[index - 1];
+                        // 1. 同じ日の自分より上にいる全員の色と被らないようにする
+                        for (let i = 0; i < index; i++) {
+                            const upperUserId = cellUserIds[i];
                             if (userColorCache.has(upperUserId)) {
                                 usedColors.add(userColorCache.get(upperUserId));
                             }
                         }
 
-                        // 2. 前日の最後の人（隣接する過去の人）の色と被らないようにする
-                        // 自分が連泊でなく新規登場の場合のみチェック
+                        // 2. 前日から連泊している人（今日もこのセルにいる人）の色と被らないようにする
+                        cellUserIds.forEach(uid => {
+                            if (uid !== userId && userColorCache.has(uid)) {
+                                usedColors.add(userColorCache.get(uid));
+                            }
+                        });
+
+                        // 3. 前日の最後の人の色と被らないようにする（現状維持）
                         if (lastDayLastColor !== -1) {
                             usedColors.add(lastDayLastColor);
                         }
