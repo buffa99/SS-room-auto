@@ -5842,6 +5842,13 @@
                               {occupants.map((userId) => {
                                 const user = users.find(u => u.id === userId);
                                 if (!user) return null;
+                                
+                                // 部屋固定チェック
+                                const periods = getStayPeriods(user.stayDates || []);
+                                const currentPeriod = periods.find(p => p.includes(dateStr));
+                                const periodKey = currentPeriod ? `${currentPeriod[0]}_${currentPeriod[currentPeriod.length - 1]}` : '';
+                                const isFixedInPeriod = periodKey && user.fixedRooms && user.fixedRooms[periodKey];
+                                
                                 return (
                                   <div 
                                     key={userId}
@@ -5853,7 +5860,11 @@
                                       e.stopPropagation();
                                       handleEditUser(user);
                                     }}
-                                    className="flex-1 p-1 text-xs font-bold bg-white border border-orange-300 text-gray-800 text-center cursor-grab active:cursor-grabbing m-0.5 rounded shadow-sm"
+                                    className={`flex-1 p-1 text-xs font-bold text-center cursor-grab active:cursor-grabbing m-0.5 rounded shadow-sm border ${
+                                      isFixedInPeriod 
+                                        ? 'bg-yellow-200 border-yellow-300 text-yellow-800' 
+                                        : 'bg-white border-orange-300 text-gray-800'
+                                    }`}
                                     title="ドラッグで部屋移動 / 右クリックで移動先選択"
                                   >
                                     {user.name}
@@ -6019,6 +6030,13 @@
                               {tempOccupants.map((userId) => {
                                 const user = users.find(u => u.id === userId);
                                 if (!user) return null;
+                                
+                                // 部屋固定チェック
+                                const periods = getStayPeriods(user.stayDates || []);
+                                const currentPeriod = periods.find(p => p.includes(dateStr));
+                                const periodKey = currentPeriod ? `${currentPeriod[0]}_${currentPeriod[currentPeriod.length - 1]}` : '';
+                                const isFixedInPeriod = periodKey && user.fixedRooms && user.fixedRooms[periodKey];
+                                
                                 return (
                                   <div 
                                     key={userId}
@@ -6030,7 +6048,11 @@
                                       e.stopPropagation();
                                       handleEditUser(user);
                                     }}
-                                    className="flex-1 p-1 text-xs font-bold bg-purple-300 text-purple-900 text-center cursor-grab active:cursor-grabbing border-b border-purple-400 last:border-b-0"
+                                    className={`flex-1 p-1 text-xs font-bold text-center cursor-grab active:cursor-grabbing border-b last:border-b-0 ${
+                                      isFixedInPeriod 
+                                        ? 'bg-yellow-200 text-yellow-800 border-yellow-300' 
+                                        : 'bg-purple-300 text-purple-900 border-purple-400'
+                                    }`}
                                     title="ドラッグで部屋移動 / 右クリックで移動先選択"
                                   >
                                     {user.name}
