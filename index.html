@@ -1881,31 +1881,39 @@
         
         setIsLoaded(true);
 
-        // Firebaseリアルタイムリスナー（ローカル優先のため無効化）
-        // ※ローカルでの作業中に、サーバー側の古いデータで上書きされるのを防ぐため
-        // if (isFirebaseEnabled && database) {
-        //   // データ変更のリアルタイム監視
-        //   const dataRef = database.ref('data');
-        //   dataRef.on('value', (snap) => {
-        //     const data = snap.val();
-        //     if (data) {
-        //       if (data[STORAGE_KEY_USERS]) setUsers(data[STORAGE_KEY_USERS]);
-        //       if (data[STORAGE_KEY_ALLOCATIONS]) setAllocations(data[STORAGE_KEY_ALLOCATIONS]);
-        //       if (data[STORAGE_KEY_MEMOS]) setMemos(data[STORAGE_KEY_MEMOS]);
-        //       if (data[STORAGE_KEY_ROOMS]) setRooms(data[STORAGE_KEY_ROOMS]);
-        //       if (data[STORAGE_KEY_TEMP_ROOMS]) setTempRooms(data[STORAGE_KEY_TEMP_ROOMS]);
-        //       if (data[STORAGE_KEY_MEAL_TICKETS]) setMealTickets(data[STORAGE_KEY_MEAL_TICKETS]);
-        //       if (data[STORAGE_KEY_CUSTOM_ROWS]) setCustomRows(data[STORAGE_KEY_CUSTOM_ROWS]);
-        //       if (data[STORAGE_KEY_CUSTOM_ROW_MEMOS]) setCustomRowMemos(data[STORAGE_KEY_CUSTOM_ROW_MEMOS]);
-        //       if (data[STORAGE_KEY_STICKIES]) setStickies(data[STORAGE_KEY_STICKIES]);
-        //     }
-        //   });
+        // Firebaseリアルタイムリスナー
+        if (isFirebaseEnabled && database) {
+          // データ変更のリアルタイム監視
+          const dataRef = database.ref('data');
+          dataRef.on('value', (snap) => {
+            const data = snap.val();
+            if (data) {
+              // 変更検知ロジック（現在のStateと比較して、変更がある場合のみ更新）
+              // これにより、自分が編集した際の不要な再レンダリングやループを防ぎます
+              const updateIfChanged = (current, next) => {
+                if (!next) return current;
+                // 内容が同じなら更新しない（参照を維持）
+                if (JSON.stringify(current) === JSON.stringify(next)) return current;
+                return next;
+              };
 
-        //   // クリーンアップ
-        //   return () => {
-        //     dataRef.off();
-        //   };
-        // }
+              if (data[STORAGE_KEY_USERS]) setUsers(prev => updateIfChanged(prev, data[STORAGE_KEY_USERS]));
+              if (data[STORAGE_KEY_ALLOCATIONS]) setAllocations(prev => updateIfChanged(prev, data[STORAGE_KEY_ALLOCATIONS]));
+              if (data[STORAGE_KEY_MEMOS]) setMemos(prev => updateIfChanged(prev, data[STORAGE_KEY_MEMOS]));
+              if (data[STORAGE_KEY_ROOMS]) setRooms(prev => updateIfChanged(prev, data[STORAGE_KEY_ROOMS]));
+              if (data[STORAGE_KEY_TEMP_ROOMS]) setTempRooms(prev => updateIfChanged(prev, data[STORAGE_KEY_TEMP_ROOMS]));
+              if (data[STORAGE_KEY_MEAL_TICKETS]) setMealTickets(prev => updateIfChanged(prev, data[STORAGE_KEY_MEAL_TICKETS]));
+              if (data[STORAGE_KEY_CUSTOM_ROWS]) setCustomRows(prev => updateIfChanged(prev, data[STORAGE_KEY_CUSTOM_ROWS]));
+              if (data[STORAGE_KEY_CUSTOM_ROW_MEMOS]) setCustomRowMemos(prev => updateIfChanged(prev, data[STORAGE_KEY_CUSTOM_ROW_MEMOS]));
+              if (data[STORAGE_KEY_STICKIES]) setStickies(prev => updateIfChanged(prev, data[STORAGE_KEY_STICKIES]));
+            }
+          });
+
+          // クリーンアップ
+          return () => {
+            dataRef.off();
+          };
+        }
       }, []);
 
       useEffect(() => {
