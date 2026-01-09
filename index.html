@@ -2554,6 +2554,48 @@
         e.target.value = '';
       };
 
+      // --- 空床部屋の並べ替え用ドラッグ&ドロップ ---
+      const [dragTempRoomId, setDragTempRoomId] = useState(null);
+
+      const handleTempRoomDragStart = (e, id) => {
+        e.stopPropagation();
+        setDragTempRoomId(id);
+        e.dataTransfer.effectAllowed = 'move';
+        // 他のドラッグ状態をクリア
+        setDragItem(null);
+        setDragUser(null);
+      };
+
+      const handleTempRoomDragOver = (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+      };
+
+      const handleTempRoomDrop = (e, targetId) => {
+        e.preventDefault();
+        if (!dragTempRoomId || dragTempRoomId === targetId) {
+          setDragTempRoomId(null);
+          return;
+        }
+
+        saveHistory();
+        
+        const newTempRooms = [...tempRooms];
+        const fromIndex = newTempRooms.findIndex(r => r.id === dragTempRoomId);
+        const toIndex = newTempRooms.findIndex(r => r.id === targetId);
+        
+        if (fromIndex !== -1 && toIndex !== -1) {
+          const [movedRoom] = newTempRooms.splice(fromIndex, 1);
+          newTempRooms.splice(toIndex, 0, movedRoom);
+          
+          setTempRooms(newTempRooms);
+          if (isFirebaseEnabled && database) {
+            database.ref('data/' + STORAGE_KEY_TEMP_ROOMS).set(newTempRooms);
+          }
+        }
+        setDragTempRoomId(null);
+      };
+
       // --- ドラッグ＆ドロップ ハンドラ ---
       const handleDragStart = (e, userId, date, type) => {
         setDragItem({ userId, date, type });
@@ -6231,12 +6273,22 @@
                       4. 空床エリア（紫）
                      ========================================= */}
                   {currentMonthTempRooms.map((tempRoom, index) => (
-                    <tr key={tempRoom.id} className="bg-purple-50" style={{height: '60px'}}>
-                      <td className="p-2 border-2 border-gray-400 bg-purple-100 font-bold text-sm text-center align-middle sticky left-0 z-30">
+                    <tr key={tempRoom.id} className={`bg-purple-50 transition-colors ${dragTempRoomId === tempRoom.id ? 'opacity-50' : ''}`} style={{height: '60px'}}>
+                      <td 
+                        className={`p-2 border-2 border-gray-400 font-bold text-sm text-center align-middle sticky left-0 z-30 cursor-move
+                          ${dragTempRoomId === tempRoom.id ? 'bg-purple-300' : 'bg-purple-100'}
+                          ${dragTempRoomId && dragTempRoomId !== tempRoom.id ? 'hover:bg-purple-200' : ''}
+                        `}
+                        draggable
+                        onDragStart={(e) => handleTempRoomDragStart(e, tempRoom.id)}
+                        onDragOver={handleTempRoomDragOver}
+                        onDrop={(e) => handleTempRoomDrop(e, tempRoom.id)}
+                      >
                         <div className="flex flex-col items-center gap-1">
                           <span>{tempRoom.name}</span>
                           <div className="flex gap-1">
                             <button 
+                              onMouseDown={(e) => e.stopPropagation()}
                               onClick={() => handleRenameTempRoom(tempRoom.id, tempRoom.name)}
                               className="text-xs bg-white border border-gray-400 rounded px-1 hover:bg-gray-100"
                             >
@@ -6244,6 +6296,7 @@
                             </button>
                             {index > 0 && (
                               <button
+                                onMouseDown={(e) => e.stopPropagation()}
                                 onClick={() => {
                                   const hasOccupants = Object.keys(allocations).some(k => k.endsWith(`-${tempRoom.id}`) && allocations[k]?.length > 0);
                                   if (hasOccupants) { alert('利用者がいるため削除できません'); return; }
