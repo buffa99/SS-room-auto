@@ -1552,7 +1552,7 @@
           onMouseDown={handleMouseDown}
         >
           <div className="flex justify-between items-center p-1 border-b border-black/5 cursor-move handle bg-black/5">
-            <div className="flex gap-1 px-1">
+            <div className="flex gap-1 px-1 items-center">
                {colors.map(c => (
                  <button
                    key={c.bg}
@@ -1561,6 +1561,26 @@
                    title="色を変更"
                  />
                ))}
+               <div className="flex gap-1 ml-2 border-l border-gray-300 pl-2">
+                 <button
+                   className="text-[10px] bg-white/50 hover:bg-white rounded px-1 font-bold text-gray-600"
+                   onClick={(e) => { 
+                     e.stopPropagation(); 
+                     const currentSize = sticky.fontSize || 14;
+                     onUpdate(sticky.id, { fontSize: Math.max(10, currentSize - 2) }); 
+                   }}
+                   title="文字を小さく"
+                 >A-</button>
+                 <button
+                   className="text-[10px] bg-white/50 hover:bg-white rounded px-1 font-bold text-gray-600"
+                   onClick={(e) => { 
+                     e.stopPropagation(); 
+                     const currentSize = sticky.fontSize || 14;
+                     onUpdate(sticky.id, { fontSize: Math.min(64, currentSize + 2) }); 
+                   }}
+                   title="文字を大きく"
+                 >A+</button>
+               </div>
             </div>
             <button 
               onClick={(e) => { e.stopPropagation(); onDelete(sticky.id); }} 
@@ -1569,7 +1589,8 @@
             >×</button>
           </div>
           <textarea
-            className={`flex-1 w-full p-2 bg-transparent resize-none outline-none text-sm text-gray-800 placeholder-gray-400`}
+            className={`flex-1 w-full p-2 bg-transparent resize-none outline-none text-gray-800 placeholder-gray-400`}
+            style={{ fontSize: (sticky.fontSize || 14) + 'px', lineHeight: '1.4' }}
             value={text}
             onChange={(e) => setText(e.target.value)}
             onBlur={() => onUpdate(sticky.id, { text })}
@@ -3810,6 +3831,7 @@
           width: 200,
           height: 150,
           color: 'bg-yellow-100',
+          fontSize: 14,
           zIndex: stickies.length + 1
         };
         const newStickies = [...stickies, newSticky];
