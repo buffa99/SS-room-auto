@@ -1480,8 +1480,11 @@
     // ============================================
     const StickyNote = ({ sticky, onUpdate, onDelete }) => {
       const [position, setPosition] = useState({ x: sticky.x, y: sticky.y });
+      const [size, setSize] = useState({ width: sticky.width || 200, height: sticky.height || 150 });
       const [isDragging, setIsDragging] = useState(false);
+      const [isResizing, setIsResizing] = useState(false);
       const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+      const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, w: 0, h: 0 });
       const [text, setText] = useState(sticky.text);
       
       // 外部からの変更を反映
@@ -1490,11 +1493,15 @@
       }, [sticky.x, sticky.y]);
 
       useEffect(() => {
+        setSize({ width: sticky.width || 200, height: sticky.height || 150 });
+      }, [sticky.width, sticky.height]);
+
+      useEffect(() => {
         setText(sticky.text);
       }, [sticky.text]);
 
       const handleMouseDown = (e) => {
-        if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON') return;
+        if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON' || e.target.closest('.resize-handle')) return;
         setIsDragging(true);
         setDragOffset({
           x: e.clientX - position.x,
@@ -1503,13 +1510,32 @@
         e.stopPropagation();
       };
 
+      const handleResizeMouseDown = (e) => {
+        e.stopPropagation();
+        setIsResizing(true);
+        setResizeStart({
+          x: e.clientX,
+          y: e.clientY,
+          w: size.width,
+          h: size.height
+        });
+      };
+
       useEffect(() => {
         const handleMouseMove = (e) => {
-          if (!isDragging) return;
-          setPosition({
-            x: e.clientX - dragOffset.x,
-            y: e.clientY - dragOffset.y
-          });
+          if (isDragging) {
+            setPosition({
+              x: e.clientX - dragOffset.x,
+              y: e.clientY - dragOffset.y
+            });
+          } else if (isResizing) {
+            const deltaX = e.clientX - resizeStart.x;
+            const deltaY = e.clientY - resizeStart.y;
+            setSize({
+              width: Math.max(100, resizeStart.w + deltaX),
+              height: Math.max(100, resizeStart.h + deltaY)
+            });
+          }
         };
         
         const handleMouseUp = () => {
@@ -1517,9 +1543,13 @@
             setIsDragging(false);
             onUpdate(sticky.id, { x: position.x, y: position.y });
           }
+          if (isResizing) {
+            setIsResizing(false);
+            onUpdate(sticky.id, { width: size.width, height: size.height });
+          }
         };
 
-        if (isDragging) {
+        if (isDragging || isResizing) {
           window.addEventListener('mousemove', handleMouseMove);
           window.addEventListener('mouseup', handleMouseUp);
         }
@@ -1527,7 +1557,7 @@
           window.removeEventListener('mousemove', handleMouseMove);
           window.removeEventListener('mouseup', handleMouseUp);
         };
-      }, [isDragging, dragOffset, onUpdate, sticky.id, position]);
+      }, [isDragging, isResizing, dragOffset, resizeStart, onUpdate, sticky.id, position, size]);
 
       const colors = [
         { bg: 'bg-yellow-100', border: 'border-yellow-300' },
@@ -1545,8 +1575,8 @@
             left: position.x,
             top: position.y,
             zIndex: 1000 + (sticky.zIndex || 0),
-            width: sticky.width || 200,
-            height: sticky.height || 150,
+            width: size.width,
+            height: size.height,
           }}
           className={`shadow-xl rounded-lg flex flex-col border-2 ${currentColor.bg} ${currentColor.border} transition-shadow hover:shadow-2xl print-hidden`}
           onMouseDown={handleMouseDown}
@@ -1596,6 +1626,16 @@
             onBlur={() => onUpdate(sticky.id, { text })}
             placeholder="メモを入力..."
           />
+          {/* リサイズハンドル */}
+          <div
+            className="resize-handle absolute bottom-0 right-0 w-4 h-4 cursor-se-resize flex items-end justify-end p-0.5"
+            onMouseDown={handleResizeMouseDown}
+            title="ドラッグでサイズ変更"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3 text-gray-500 opacity-50">
+              <path d="M21 15L15 21M21 8L8 21" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
         </div>
       );
     };
@@ -3823,11 +3863,16 @@
       // --- 付箋機能 ---
       const handleAddSticky = () => {
         saveHistory();
+        // 画面中央に配置（少しずらす）
+        const initialX = (window.innerWidth / 2) - 100;
+        const initialY = (window.innerHeight / 2) - 75;
+        const offset = (stickies.length % 5) * 20;
+
         const newSticky = {
           id: `sticky_${Date.now()}`,
           text: '',
-          x: 150 + (stickies.length * 20),
-          y: 150 + (stickies.length * 20),
+          x: initialX + offset,
+          y: initialY + offset,
           width: 200,
           height: 150,
           color: 'bg-yellow-100',
