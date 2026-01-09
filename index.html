@@ -115,76 +115,6 @@
       writing-mode: vertical-rl;
       text-orientation: mixed;
     }
-    /* 横スクロールバーを常時表示 */
-    .scroll-always-visible {
-      overflow: scroll !important;
-      scrollbar-gutter: stable;
-    }
-    .scroll-always-visible::-webkit-scrollbar {
-      width: 16px !important;
-      height: 16px !important;
-      display: block !important;
-    }
-    .scroll-always-visible::-webkit-scrollbar-thumb {
-      background: #666 !important;
-      border-radius: 8px;
-      border: 3px solid #f1f1f1;
-      min-height: 40px;
-    }
-    .scroll-always-visible::-webkit-scrollbar-thumb:hover {
-      background: #444 !important;
-    }
-    .scroll-always-visible::-webkit-scrollbar-track {
-      background: #e0e0e0 !important;
-    }
-    .scroll-always-visible::-webkit-scrollbar-corner {
-      background: #e0e0e0 !important;
-    }
-    /* Firefox用 */
-    @supports (scrollbar-width: auto) {
-      .scroll-always-visible {
-        scrollbar-width: auto;
-        scrollbar-color: #666 #e0e0e0;
-      }
-    }
-    /* 同時編集用スタイル */
-    .connected-users-panel {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-      padding: 12px;
-      z-index: 9999;
-      max-width: 280px;
-    }
-    .user-avatar {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      font-weight: bold;
-      font-size: 14px;
-    }
-    .editing-cell {
-      outline: 3px solid var(--editor-color, #3b82f6) !important;
-      outline-offset: -1px;
-    }
-    .editor-label {
-      position: absolute;
-      top: -18px;
-      left: 0;
-      font-size: 10px;
-      padding: 1px 4px;
-      border-radius: 3px;
-      color: white;
-      white-space: nowrap;
-      z-index: 100;
-    }
     /* 付箋折り畳み時の点滅 */
     @keyframes sticky-blink {
       0%, 100% { 
@@ -1740,8 +1670,6 @@
       const [showSettings, setShowSettings] = useState(false); // 設定モーダル
       const [headerCollapsed, setHeaderCollapsed] = useState(false); // ヘッダー折りたたみ
       const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // サイドバー折りたたみ
-      const [settingsError, setSettingsError] = useState('');
-      const [settingsSuccess, setSettingsSuccess] = useState('');
       const [lastBackup, setLastBackup] = useState(null);
       const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
       const [archiveYear, setArchiveYear] = useState('');
@@ -2556,7 +2484,6 @@
         setArchiveYear('');
         setShowArchiveConfirm(false);
         setArchiveStats(null);
-        setSettingsSuccess(`${year}年のデータをアーカイブしました`);
       };
 
       // --- データインポート ---
@@ -4095,8 +4022,6 @@
                   <button 
                     onClick={() => {
                       setShowSettings(false);
-                      setSettingsError('');
-                      setSettingsSuccess('');
                       setArchiveYear('');
                       setArchiveStats(null);
                     }}
@@ -5711,8 +5636,8 @@
                     );
                   })()}
                 </div>
-                <div className="text-lg text-gray-500">
-                  ※利用者名をドラッグで部屋移動 / 右クリックで一時保管へ移動。アイコン（🛁・🛏️）は同利用者の他の日に移動可。
+                <div className="text-lg text-red-600 font-bold">
+                  利用者名をドラッグアウトか、右クリックで部屋移動が可能。部屋を決めたら固定して下さい。
                 </div>
               </div>
               <div ref={tableContainerRef} className="flex-1 min-h-0 overflow-auto">
@@ -5838,7 +5763,7 @@
                             style={{
                               backgroundColor: isRoomDragOver ? undefined : 
                                 isEmpty ? '#00FE73' : 
-                                isPast ? '#9ca3af' : 
+                                isPast ? '#d1d5db' : 
                                 isWeekend ? 'rgba(249, 250, 251, 0.5)' : 'white',
                               borderLeft: isSunday ? '4px solid #ef4444' : (isToday ? '6px solid #1e3a8a' : undefined)
                             }}
@@ -6102,12 +6027,14 @@
                         return count + (allocations[key]?.length || 0);
                       }, 0);
                       const today = toDateStr(new Date());
+                      const isPast = dateStr < today;
                       const isToday = dateStr === today;
                       const isSunday = parseLocalDate(dateStr).getDay() === 0;
                       
                       return (
                         <td key={dateStr} className="p-1 border-2 border-gray-400 bg-yellow-100 text-center align-middle"
                           style={{
+                            backgroundColor: isPast ? '#d1d5db' : undefined,
                             borderLeftWidth: isToday ? '6px' : undefined,
                             borderLeftColor: isToday ? '#1e3a8a' : undefined,
                             borderLeft: isSunday ? '4px solid #ef4444' : (isToday ? '6px solid #1e3a8a' : undefined)
@@ -6160,6 +6087,7 @@
                         const occupants = allocations[key] || [];
                         const isRoomDragOver = dragOverRoom === `${dateStr}-${room.id}`;
                         const today = toDateStr(new Date());
+                        const isPast = dateStr < today;
                         const isToday = dateStr === today;
                         const isSunday = parseLocalDate(dateStr).getDay() === 0;
                         
@@ -6170,6 +6098,7 @@
                               ${occupants.length > 0 ? 'bg-orange-100' : 'bg-orange-50'}
                               ${isRoomDragOver ? 'bg-yellow-100 border-dashed border-yellow-500' : ''}`}
                             style={{
+                              backgroundColor: isRoomDragOver ? undefined : (isPast ? '#d1d5db' : undefined),
                               borderLeft: isSunday ? '4px solid #ef4444' : (isToday ? '6px solid #1e3a8a' : undefined)
                             }}
                             onDragOver={(e) => handleRoomDragOver(e, dateStr, room.id)}
@@ -6245,6 +6174,7 @@
                         const memoKey1 = `${dateStr}-${customRow.id}-1`;
                         const memoKey2 = `${dateStr}-${customRow.id}-2`;
                         const today = toDateStr(new Date());
+                        const isPast = dateStr < today;
                         const isToday = dateStr === today;
                         const isSunday = parseLocalDate(dateStr).getDay() === 0;
                         return (
@@ -6252,6 +6182,7 @@
                             key={dateStr} 
                             className="p-0 border border-gray-300 bg-slate-50 align-top"
                             style={{
+                              backgroundColor: isPast ? '#d1d5db' : undefined,
                               borderLeft: isSunday ? '4px solid #ef4444' : (isToday ? '6px solid #1e3a8a' : undefined)
                             }}
                           >
@@ -6264,7 +6195,7 @@
                                     database.ref(`data/${STORAGE_KEY_CUSTOM_ROW_MEMOS}/${memoKey1}`).set(val);
                                   }
                                 }}
-                                className="w-full flex-1 p-0.5 text-xs bg-slate-50 outline-none text-gray-800 placeholder-gray-300 focus:bg-yellow-50 border-b border-gray-200"
+                                className={`w-full flex-1 p-0.5 text-xs outline-none text-gray-800 placeholder-gray-300 focus:bg-yellow-50 border-b border-gray-200 ${isPast ? 'bg-gray-400' : 'bg-slate-50'}`}
                                 placeholder=""
                               />
                               <MemoInput
@@ -6275,7 +6206,7 @@
                                     database.ref(`data/${STORAGE_KEY_CUSTOM_ROW_MEMOS}/${memoKey2}`).set(val);
                                   }
                                 }}
-                                className="w-full flex-1 p-0.5 text-xs bg-slate-50 outline-none text-gray-800 placeholder-gray-300 focus:bg-yellow-50"
+                                className={`w-full flex-1 p-0.5 text-xs outline-none text-gray-800 placeholder-gray-300 focus:bg-yellow-50 ${isPast ? 'bg-gray-400' : 'bg-slate-50'}`}
                                 placeholder=""
                               />
                             </div>
@@ -6370,6 +6301,7 @@
                               ${tempOccupants.length > 0 ? 'bg-purple-100' : 'bg-purple-50'}
                               ${isRoomDragOver ? 'bg-yellow-100 border-dashed border-yellow-500' : ''}`}
                             style={{
+                              backgroundColor: isRoomDragOver ? undefined : (isPast ? '#d1d5db' : undefined),
                               borderLeft: isSunday ? '4px solid #ef4444' : (isToday ? '6px solid #1e3a8a' : undefined)
                             }}
                             onDragOver={(e) => handleRoomDragOver(e, dateStr, tempRoom.id)}
@@ -6414,7 +6346,7 @@
                               <MemoInput
                                 value={memos[`${dateStr}-${tempRoom.id}`] || ''}
                                 onSave={(val) => handleMemoChange(dateStr, tempRoom.id, val)}
-                                className={`w-full h-6 text-[9px] border-t border-purple-300 p-1 outline-none text-red-600 font-bold placeholder-gray-300 focus:bg-yellow-50 print-placeholder-transparent mt-auto ${isPast ? 'bg-gray-300' : 'bg-purple-50'}`}
+                                className={`w-full h-6 text-[9px] border-t border-purple-300 p-1 outline-none text-red-600 font-bold placeholder-gray-300 focus:bg-yellow-50 print-placeholder-transparent mt-auto ${isPast ? 'bg-gray-400' : 'bg-purple-50'}`}
                                 placeholder="メモ"
                               />
                             </div>
@@ -6456,8 +6388,12 @@
                         const key = `${dateStr}-${room.id}`;
                         return count + (allocations[key]?.length || 0);
                       }, 0);
+                      const today = toDateStr(new Date());
+                      const isPast = dateStr < today;
                       return (
-                        <td key={dateStr} className="p-1 border-2 border-gray-400 bg-purple-100 text-center align-middle">
+                        <td key={dateStr} className="p-1 border-2 border-gray-400 bg-purple-100 text-center align-middle"
+                          style={{ backgroundColor: isPast ? '#d1d5db' : undefined }}
+                        >
                           <span className="font-bold text-sm text-gray-700">{tempCount > 0 ? tempCount : '-'}</span>
                         </td>
                       );
@@ -6484,12 +6420,14 @@
                       
                       const totalDaily = regularCount + tempCount;
                       const today = toDateStr(new Date());
+                      const isPast = dateStr < today;
                       const isToday = dateStr === today;
                       const isSunday = parseLocalDate(dateStr).getDay() === 0;
 
                       return (
                         <td key={dateStr} className="p-1 border-2 border-gray-400 bg-green-100 text-center align-middle"
                           style={{
+                            backgroundColor: isPast ? '#d1d5db' : undefined,
                             borderLeftWidth: isToday ? '6px' : undefined,
                             borderLeftColor: isToday ? '#1e3a8a' : undefined,
                             borderLeft: isSunday ? '4px solid #ef4444' : (isToday ? '6px solid #1e3a8a' : undefined)
