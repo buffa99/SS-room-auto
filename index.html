@@ -26,78 +26,164 @@
     .print-only { display: none; }
     
     @media print {
-      .screen-only { display: none !important; }
-      .print-only { display: block !important; }
+      .print-only { display: none !important; }
+      .screen-only { display: block !important; }
+      .print-hidden { display: none !important; }
       
       @page {
-        size: A3 landscape;
-        margin: 10mm;
+        size: A4 landscape;
+        margin: 5mm;
       }
+      
       body {
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-        background: white;
-        font-size: 10pt !important;
-        width: 100% !important;
-        min-width: 0 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+        background: white !important;
+        margin: 0 !important;
+        padding: 0 !important;
       }
       
-      /* 印刷用レイアウト調整 */
-      .print-page {
-        width: 100%;
-        page-break-after: auto;
-      }
-      .page-break-before-always {
-        page-break-before: always !important;
-        margin-top: 20px;
-        display: block !important;
-      }
-      
-      /* レイアウトのリセット */
-      #root, .min-h-screen, .flex, .flex-col {
+      #root, .min-h-screen {
         display: block !important;
         height: auto !important;
         overflow: visible !important;
+        padding: 0 !important;
       }
-
-      /* テーブルスタイル */
+      
+      /* グリッドレイアウト解除・サイドバー非表示 */
+      .grid {
+        display: block !important;
+      }
+      
+      .lg\:col-span-1:first-child {
+        display: none !important;
+      }
+      
+      .lg\:col-span-4, .col-span-1 {
+        width: 100% !important;
+        height: auto !important;
+        overflow: visible !important;
+        padding: 0 !important;
+      }
+      
+      /* テーブルコンテナ */
+      .overflow-auto {
+        overflow: visible !important;
+        height: auto !important;
+        max-height: none !important;
+      }
+      
+      /* テーブル本体 */
       table {
         width: 100% !important;
         table-layout: fixed !important;
         border-collapse: collapse !important;
-        margin-bottom: 10px !important;
+        transform: scale(0.78);
+        transform-origin: top left;
       }
-      tr {
-        page-break-inside: avoid !important;
-      }
-      th, td {
-        border: 1px solid #444 !important;
-        padding: 4px !important;
-        font-size: 9pt !important;
+      
+      /* ヘッダー行（日付） */
+      thead th {
+        padding: 2px 1px !important;
+        font-size: 7pt !important;
         height: 35px !important;
         vertical-align: middle !important;
-        word-wrap: break-word;
+        word-break: break-all !important;
       }
-      th:first-child, td:first-child {
-        width: 120px !important;
-        font-size: 12pt !important;
+      
+      /* 部屋名セル（左端） */
+      td:first-child, th:first-child {
+        width: 45px !important;
+        min-width: 45px !important;
+        max-width: 45px !important;
+        font-size: 9pt !important;
         font-weight: bold !important;
-        text-align: center;
-      }
-      th:last-child, td:last-child {
-        width: 60px !important;
-        text-align: center;
+        position: static !important;
+        word-break: break-all !important;
       }
       
-      /* アイコン拡大 */
-      .print-icon {
-        font-size: 16pt !important;
-        margin-left: 4px;
+      /* 実績セル（右端） */
+      td:last-child, th:last-child {
+        width: 30px !important;
+        min-width: 30px !important;
+        max-width: 30px !important;
+        font-size: 9pt !important;
       }
       
-      /* スクロールバー非表示 */
-      .overflow-auto {
-        overflow: visible !important;
+      /* 日付セル - 幅を狭くして縦長に */
+      th:not(:first-child):not(:last-child),
+      td:not(:first-child):not(:last-child) {
+        width: 28px !important;
+        min-width: 28px !important;
+        max-width: 28px !important;
+        padding: 1px !important;
+      }
+      
+      /* データセル - 高さを増やして文字を改行 */
+      tbody td {
+        height: 70px !important;
+        padding: 2px 1px !important;
+        vertical-align: top !important;
+        word-break: break-all !important;
+        overflow-wrap: break-word !important;
+      }
+      
+      /* 利用者名 - 文字を改行させる */
+      tbody td span, 
+      tbody td div {
+        font-size: 6pt !important;
+        line-height: 1.2 !important;
+        word-break: break-all !important;
+        overflow-wrap: break-word !important;
+        white-space: normal !important;
+      }
+      
+      /* 利用者名の表示エリア */
+      tbody td > div > div {
+        word-break: break-all !important;
+        overflow-wrap: break-word !important;
+      }
+      
+      /* アイコン（入浴・リネン） */
+      .text-2xl {
+        font-size: 10pt !important;
+        display: inline-block !important;
+      }
+      
+      /* メモ欄 */
+      input[type="text"], .h-6 {
+        height: 12px !important;
+        font-size: 6pt !important;
+        padding: 0 1px !important;
+      }
+      
+      /* フッター行（実績数） */
+      tfoot td, tfoot th {
+        height: 25px !important;
+        font-size: 8pt !important;
+        font-weight: bold !important;
+      }
+      
+      /* 一時保管・キャンセル待ち・空床を非表示（本館のみ印刷） */
+      tfoot tr:not(.bg-yellow-100):not(.bg-green-100) {
+        display: none !important;
+      }
+      
+      /* スペーサー行を非表示 */
+      tr[style*="height: 20px"], 
+      tr[style*="height: 24px"] {
+        display: none !important;
+      }
+      
+      /* stickyを解除 */
+      .sticky {
+        position: static !important;
+      }
+      
+      /* ページ分割防止 */
+      tbody, table {
+        page-break-inside: avoid !important;
       }
     }
     
@@ -5654,7 +5740,7 @@
                 {currentMonth.getFullYear()}年 {currentMonth.getMonth() + 1}月 ショートステイ部屋割表
               </h2>
 
-              <table className={`w-full border-collapse text-xs ${displayDates.length > 14 ? 'min-w-[2000px]' : ''} print-hidden`}>
+              <table className={`w-full border-collapse text-xs ${displayDates.length > 14 ? 'min-w-[2000px]' : ''}`}>
                 <thead className="sticky top-0 z-40">
                   <tr>
                     <th className="p-2 border-2 border-gray-400 bg-gray-100 text-center text-xl font-bold sticky left-0 z-50 shadow-sm" style={{width: '150px', minWidth: '150px'}}>部屋</th>
@@ -6484,250 +6570,6 @@
         ))}
         </div>
 
-        {/* --- B. 印刷専用ビュー（新設） --- */}
-        <div className="print-only">
-          {/* 1枚目：本館（201-210号室） */}
-          <div className="print-page" style={{ pageBreakAfter: 'always' }}>
-            <h1 className="text-xl font-bold mb-2">{currentMonth.getFullYear()}年{currentMonth.getMonth() + 1}月 部屋割表</h1>
-            <table className="w-full border-collapse border border-gray-600">
-              <thead>
-                <tr>
-                  <th>部屋</th>
-                  {displayDates.map(dateStr => {
-                    const dateObj = parseLocalDate(dateStr);
-                    const dayOfWeek = dateObj.getDay();
-                    const isSun = dayOfWeek === 0;
-                    const isSat = dayOfWeek === 6;
-                    const holiday = HOLIDAYS_JP[dateStr];
-                    const isRed = isSun || holiday;
-                    
-                    let bgColor = '#f3f4f6';
-                    let textColor = '#374151';
-                    if (isRed) { bgColor = '#fef2f2'; textColor = '#dc2626'; }
-                    else if (isSat) { bgColor = '#eff6ff'; textColor = '#2563eb'; }
-
-                    return (
-                      <th key={dateStr} style={{ backgroundColor: bgColor, color: textColor }}>
-                        <div>{dateObj.getDate()}</div>
-                        <div style={{fontSize: '8pt'}}>{WEEK_DAYS_JP[dayOfWeek]}</div>
-                      </th>
-                    );
-                  })}
-                  <th>実績</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rooms.map(room => (
-                  <tr key={room.id}>
-                    <td style={{textAlign: 'center', fontWeight: 'bold', fontSize: '12pt'}}>
-                      {room.name}
-                      <div style={{fontSize: '8pt', fontWeight: 'normal'}}>{room.label}</div>
-                    </td>
-                    {displayDates.map(dateStr => {
-                      const allocatedIds = allocations[`${dateStr}-${room.id}`] || [];
-                      const sortedIds = [...allocatedIds].sort((a, b) => {
-                        const userA = users.find(u => u.id === a);
-                        const userB = users.find(u => u.id === b);
-                        if (!userA || !userB) return 0;
-                        const aIsLeaving = !userA.stayDates.includes(getNextDay(dateStr));
-                        const bIsLeaving = !userB.stayDates.includes(getNextDay(dateStr));
-                        return (aIsLeaving === bIsLeaving) ? 0 : aIsLeaving ? -1 : 1;
-                      });
-
-                      return (
-                        <td key={dateStr} style={{verticalAlign: 'top', padding: '2px'}}>
-                          {sortedIds.map(userId => {
-                            const user = users.find(u => u.id === userId);
-                            if (!user) return null;
-                            
-                            const colorIndex = roomUserColors[`${room.id}-${userId}`] ?? 0;
-                            let bgColor = '#e5e7eb';
-                            if (colorIndex === 0) bgColor = '#fbcfe8'; // pink
-                            else if (colorIndex === 1) bgColor = '#bae6fd'; // sky
-                            else if (colorIndex === 2) bgColor = '#e9d5ff'; // purple
-                            else if (colorIndex === 3) bgColor = '#fed7aa'; // orange
-
-                            const userSchedule = user.schedule || {};
-                            const daySchedule = userSchedule[dateStr] || {};
-
-                            return (
-                              <div key={userId} style={{backgroundColor: bgColor, marginBottom: '2px', padding: '2px', borderRadius: '2px'}}>
-                                <div style={{fontWeight: 'bold', fontSize: '10pt', lineHeight: '1.1'}}>{user.name}</div>
-                                <div style={{display: 'flex', justifyContent: 'center'}}>
-                                  {(daySchedule.bath || daySchedule.mustBath) && <span className="print-icon">🛁</span>}
-                                  {daySchedule.linen && <span className="print-icon">🛏️</span>}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </td>
-                      );
-                    })}
-                    <td style={{textAlign: 'center', fontWeight: 'bold', fontSize: '12pt'}}>
-                      {displayDates.reduce((count, dateStr) => count + (allocations[`${dateStr}-${room.id}`] || []).length, 0)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr style={{backgroundColor: '#fef08a'}}>
-                  <td style={{textAlign: 'center', fontWeight: 'bold'}}>実績数</td>
-                  {displayDates.map(dateStr => (
-                    <td key={dateStr} style={{textAlign: 'center', fontWeight: 'bold'}}>
-                      {rooms.reduce((count, room) => count + (allocations[`${dateStr}-${room.id}`] || []).length, 0)}
-                    </td>
-                  ))}
-                  <td style={{textAlign: 'center', fontWeight: 'bold'}}>
-                    {(() => {
-                      const totalCount = displayDates.reduce((total, dateStr) => {
-                        return total + rooms.reduce((count, room) => {
-                          const key = `${dateStr}-${room.id}`;
-                          return count + (allocations[key]?.length || 0);
-                        }, 0);
-                      }, 0);
-                      const maxCapacity = rooms.length * displayDates.length;
-                      const occupancyRate = maxCapacity > 0 ? ((totalCount / maxCapacity) * 100).toFixed(1) : 0;
-                      return <div><div>{totalCount}</div><div style={{fontSize: '8pt'}}>({occupancyRate}%)</div></div>;
-                    })()}
-                  </td>
-                </tr>
-              {/* 一時保管（1枚目に含める） */}
-              {[
-                { id: TEMP_ROOM_1_ID, name: '一時保管①' },
-                { id: TEMP_ROOM_2_ID, name: '一時保管②' }
-              ].map(room => (
-                <tr key={room.id} style={{backgroundColor: '#fff7ed'}}>
-                  <td style={{textAlign: 'center', fontWeight: 'bold', fontSize: '12pt'}}>{room.name}</td>
-                  {displayDates.map(dateStr => {
-                    const allocatedIds = allocations[`${dateStr}-${room.id}`] || [];
-                    return (
-                      <td key={dateStr} style={{verticalAlign: 'top', padding: '2px'}}>
-                        {allocatedIds.map(userId => {
-                          const user = users.find(u => u.id === userId);
-                          if (!user) return null;
-                          return (
-                            <div key={userId} style={{backgroundColor: '#ffedd5', marginBottom: '2px', padding: '2px', borderRadius: '2px', border: '1px solid #fdba74'}}>
-                              <div style={{fontWeight: 'bold', fontSize: '10pt'}}>{user.name}</div>
-                            </div>
-                          );
-                        })}
-                      </td>
-                    );
-                  })}
-                  <td style={{textAlign: 'center', fontWeight: 'bold'}}>
-                    {displayDates.reduce((count, dateStr) => count + (allocations[`${dateStr}-${room.id}`] || []).length, 0)}
-                  </td>
-                </tr>
-              ))}
-                {/* キャンセル待ち（1枚目に含める） */}
-                {customRows.map(customRow => (
-                  <tr key={customRow.id} style={{backgroundColor: '#fff7ed'}}>
-                    <td style={{textAlign: 'center', fontSize: '10pt'}}>{customRow.name}</td>
-                    {displayDates.map(dateStr => {
-                      const memo1 = customRowMemos[`${dateStr}-${customRow.id}-1`] || '';
-                      const memo2 = customRowMemos[`${dateStr}-${customRow.id}-2`] || '';
-                      return (
-                        <td key={dateStr} style={{verticalAlign: 'top', padding: '2px', fontSize: '8pt'}}>
-                          {memo1 && <div>{memo1}</div>}
-                          {memo2 && <div>{memo2}</div>}
-                        </td>
-                      );
-                    })}
-                    <td></td>
-                  </tr>
-                ))}
-              </tfoot>
-            </table>
-          </div>
-
-          {/* 2枚目：空床（改ページ後） */}
-          {currentMonthTempRooms.length > 0 && (
-            <div className="print-page mt-4">
-              <h1 className="text-xl font-bold mb-2">空床利用一覧</h1>
-              <table className="w-full border-collapse border border-gray-600">
-                <thead>
-                  <tr>
-                    <th>空床</th>
-                    {displayDates.map(dateStr => {
-                      const dateObj = parseLocalDate(dateStr);
-                      const dayOfWeek = dateObj.getDay();
-                      return (
-                        <th key={dateStr}>
-                          <div>{dateObj.getDate()}</div>
-                          <div style={{fontSize: '8pt'}}>{WEEK_DAYS_JP[dayOfWeek]}</div>
-                        </th>
-                      );
-                    })}
-                    <th>実績</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {currentMonthTempRooms.map(tempRoom => (
-                    <tr key={tempRoom.id}>
-                      <td style={{textAlign: 'center', fontWeight: 'bold', fontSize: '12pt'}}>{tempRoom.name}</td>
-                      {displayDates.map(dateStr => {
-                        const allocatedIds = allocations[`${dateStr}-${tempRoom.id}`] || [];
-                        return (
-                          <td key={dateStr} style={{verticalAlign: 'top', padding: '2px'}}>
-                            {allocatedIds.map(userId => {
-                              const user = users.find(u => u.id === userId);
-                              if (!user) return null;
-                              return (
-                                <div key={userId} style={{backgroundColor: '#fef9c3', marginBottom: '2px', padding: '2px', borderRadius: '2px'}}>
-                                  <div style={{fontWeight: 'bold', fontSize: '10pt'}}>{user.name}</div>
-                                </div>
-                              );
-                            })}
-                          </td>
-                        );
-                      })}
-                      <td style={{textAlign: 'center', fontWeight: 'bold', fontSize: '12pt'}}>
-                        {displayDates.reduce((count, dateStr) => count + (allocations[`${dateStr}-${tempRoom.id}`] || []).length, 0)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr style={{backgroundColor: '#e9d5ff'}}>
-                    <td style={{textAlign: 'center', fontWeight: 'bold'}}>空床実績</td>
-                    {displayDates.map(dateStr => (
-                      <td key={dateStr} style={{textAlign: 'center', fontWeight: 'bold'}}>
-                        {currentMonthTempRooms.reduce((count, tempRoom) => count + (allocations[`${dateStr}-${tempRoom.id}`] || []).length, 0)}
-                      </td>
-                    ))}
-                    <td></td>
-                  </tr>
-                  {/* 合計実績（2枚目に含める） */}
-                  <tr style={{backgroundColor: '#bbf7d0'}}>
-                    <td style={{textAlign: 'center', fontWeight: 'bold'}}>合計実績</td>
-                    {displayDates.map(dateStr => {
-                      const regularCount = rooms.reduce((count, room) => count + (allocations[`${dateStr}-${room.id}`] || []).length, 0);
-                      const tempCount = currentMonthTempRooms.reduce((count, tempRoom) => count + (allocations[`${dateStr}-${tempRoom.id}`] || []).length, 0);
-                      return (
-                        <td key={dateStr} style={{textAlign: 'center', fontWeight: 'bold'}}>
-                          {regularCount + tempCount}
-                        </td>
-                      );
-                    })}
-                    <td style={{textAlign: 'center', fontWeight: 'bold'}}>
-                      {(() => {
-                        let totalPeriodCount = 0;
-                        displayDates.forEach(dateStr => {
-                          totalPeriodCount += rooms.reduce((c, r) => c + (allocations[`${dateStr}-${r.id}`]?.length || 0), 0);
-                          totalPeriodCount += currentMonthTempRooms.reduce((c, r) => c + (allocations[`${dateStr}-${r.id}`]?.length || 0), 0);
-                        });
-                        const maxCapacity = rooms.length * displayDates.length;
-                        const occupancyRate = maxCapacity > 0 ? ((totalPeriodCount / maxCapacity) * 100).toFixed(1) : 0;
-                        return <div><div>{totalPeriodCount}</div><div style={{fontSize: '8pt'}}>({occupancyRate}%)</div></div>;
-                      })()}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          )}
-        </div>
-        
         {/* 右クリックコンテキストメニュー（モーダル） */}
         {contextMenu && (
           <>
@@ -7028,5 +6870,4 @@
     root.render(<App />);
   </script>
 </body>
-    // #endregion
 </html>
