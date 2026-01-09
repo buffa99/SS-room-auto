@@ -6322,6 +6322,7 @@
                         const tempOccupants = allocations[tempKey] || [];
                         const isRoomDragOver = dragOverRoom === `${dateStr}-${tempRoom.id}`;
                         const today = toDateStr(new Date());
+                        const isPast = dateStr < today;
                         const isToday = dateStr === today;
                         const isSunday = parseLocalDate(dateStr).getDay() === 0;
                         
@@ -6338,39 +6339,47 @@
                             onDragLeave={handleRoomDragLeave}
                             onDrop={(e) => handleRoomDrop(e, dateStr, tempRoom.id)}
                           >
-                            <div className="flex flex-col h-full">
-                              {tempOccupants.map((userId) => {
-                                const user = users.find(u => u.id === userId);
-                                if (!user) return null;
-                                
-                                // 部屋固定チェック
-                                const periods = getStayPeriods(user.stayDates || []);
-                                const currentPeriod = periods.find(p => p.includes(dateStr));
-                                const periodKey = currentPeriod ? `${currentPeriod[0]}_${currentPeriod[currentPeriod.length - 1]}` : '';
-                                const isFixedInPeriod = periodKey && user.fixedRooms && user.fixedRooms[periodKey];
-                                
-                                return (
-                                  <div 
-                                    key={userId}
-                                    draggable
-                                    onDragStart={(e) => handleUserDragStart(e, userId, dateStr, tempRoom.id)}
-                                    onDragEnd={handleUserDragEnd}
-                                    onContextMenu={(e) => handleContextMenu(e, userId, dateStr, tempRoom.id)}
-                                    onDoubleClick={(e) => {
-                                      e.stopPropagation();
-                                      handleEditUser(user);
-                                    }}
-                                    className={`flex-1 p-1 text-xs font-bold text-center cursor-grab active:cursor-grabbing border-b last:border-b-0 ${
-                                      isFixedInPeriod 
-                                        ? 'bg-yellow-200 text-yellow-800 border-yellow-300' 
-                                        : 'bg-purple-300 text-purple-900 border-purple-400'
-                                    }`}
-                                    title="ドラッグで部屋移動 / 右クリックで移動先選択"
-                                  >
-                                    {user.name}
-                                  </div>
-                                );
-                              })}
+                            <div className="flex flex-col h-full justify-between min-h-[56px]">
+                              <div className="flex-1 flex flex-col min-h-0">
+                                {tempOccupants.map((userId) => {
+                                  const user = users.find(u => u.id === userId);
+                                  if (!user) return null;
+                                  
+                                  // 部屋固定チェック
+                                  const periods = getStayPeriods(user.stayDates || []);
+                                  const currentPeriod = periods.find(p => p.includes(dateStr));
+                                  const periodKey = currentPeriod ? `${currentPeriod[0]}_${currentPeriod[currentPeriod.length - 1]}` : '';
+                                  const isFixedInPeriod = periodKey && user.fixedRooms && user.fixedRooms[periodKey];
+                                  
+                                  return (
+                                    <div 
+                                      key={userId}
+                                      draggable
+                                      onDragStart={(e) => handleUserDragStart(e, userId, dateStr, tempRoom.id)}
+                                      onDragEnd={handleUserDragEnd}
+                                      onContextMenu={(e) => handleContextMenu(e, userId, dateStr, tempRoom.id)}
+                                      onDoubleClick={(e) => {
+                                        e.stopPropagation();
+                                        handleEditUser(user);
+                                      }}
+                                      className={`flex-1 p-1 text-xs font-bold text-center cursor-grab active:cursor-grabbing border-b last:border-b-0 ${
+                                        isFixedInPeriod 
+                                          ? 'bg-yellow-200 text-yellow-800 border-yellow-300' 
+                                          : 'bg-purple-300 text-purple-900 border-purple-400'
+                                      }`}
+                                      title="ドラッグで部屋移動 / 右クリックで移動先選択"
+                                    >
+                                      {user.name}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              <MemoInput
+                                value={memos[`${dateStr}-${tempRoom.id}`] || ''}
+                                onSave={(val) => handleMemoChange(dateStr, tempRoom.id, val)}
+                                className={`w-full h-6 text-[9px] border-t border-purple-300 p-1 outline-none text-red-600 font-bold placeholder-gray-300 focus:bg-yellow-50 print-placeholder-transparent mt-auto ${isPast ? 'bg-gray-300' : 'bg-purple-50'}`}
+                                placeholder="メモ"
+                              />
                             </div>
                           </td>
                         );
