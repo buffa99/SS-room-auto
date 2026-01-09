@@ -1429,8 +1429,9 @@
       const [size, setSize] = useState({ width: sticky.width || 200, height: sticky.height || 150 });
       const [isDragging, setIsDragging] = useState(false);
       const [isResizing, setIsResizing] = useState(false);
-      const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-      const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, w: 0, h: 0 });
+      // パフォーマンス最適化: 頻繁に変わる値はRefで保持し、useEffectの依存から外す
+      const dragOffsetRef = useRef({ x: 0, y: 0 });
+      const resizeStartRef = useRef({ x: 0, y: 0, w: 0, h: 0 });
       const [text, setText] = useState(sticky.text);
       const [isCollapsed, setIsCollapsed] = useState(sticky.isCollapsed || false);
       
@@ -1453,62 +1454,69 @@
 
       const handleMouseDown = (e) => {
         if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON' || e.target.closest('.resize-handle')) return;
+        e.stopPropagation();
         setIsDragging(true);
-        setDragOffset({
+        // Refに保存
+        dragOffsetRef.current = {
           x: e.clientX - position.x,
           y: e.clientY - position.y
-        });
-        e.stopPropagation();
+        };
       };
 
       const handleResizeMouseDown = (e) => {
         e.stopPropagation();
         setIsResizing(true);
-        setResizeStart({
+        // Refに保存
+        resizeStartRef.current = {
           x: e.clientX,
           y: e.clientY,
           w: size.width,
           h: size.height
-        });
+        };
       };
 
       useEffect(() => {
+        if (!isDragging && !isResizing) return;
+
         const handleMouseMove = (e) => {
           if (isDragging) {
-            setPosition({
-              x: e.clientX - dragOffset.x,
-              y: e.clientY - dragOffset.y
-            });
+            const newX = e.clientX - dragOffsetRef.current.x;
+            const newY = e.clientY - dragOffsetRef.current.y;
+            setPosition({ x: newX, y: newY });
           } else if (isResizing) {
-            const deltaX = e.clientX - resizeStart.x;
-            const deltaY = e.clientY - resizeStart.y;
+            const deltaX = e.clientX - resizeStartRef.current.x;
+            const deltaY = e.clientY - resizeStartRef.current.y;
             setSize({
-              width: Math.max(100, resizeStart.w + deltaX),
-              height: Math.max(100, resizeStart.h + deltaY)
+              width: Math.max(100, resizeStartRef.current.w + deltaX),
+              height: Math.max(100, resizeStartRef.current.h + deltaY)
             });
           }
         };
         
-        const handleMouseUp = () => {
+        const handleMouseUp = (e) => {
           if (isDragging) {
             setIsDragging(false);
-            onUpdate(sticky.id, { x: position.x, y: position.y });
+            const finalX = e.clientX - dragOffsetRef.current.x;
+            const finalY = e.clientY - dragOffsetRef.current.y;
+            onUpdate(sticky.id, { x: finalX, y: finalY });
           }
           if (isResizing) {
             setIsResizing(false);
-            onUpdate(sticky.id, { width: size.width, height: size.height });
+            const deltaX = e.clientX - resizeStartRef.current.x;
+            const deltaY = e.clientY - resizeStartRef.current.y;
+            const finalW = Math.max(100, resizeStartRef.current.w + deltaX);
+            const finalH = Math.max(100, resizeStartRef.current.h + deltaY);
+            onUpdate(sticky.id, { width: finalW, height: finalH });
           }
         };
 
-        if (isDragging || isResizing) {
-          window.addEventListener('mousemove', handleMouseMove);
-          window.addEventListener('mouseup', handleMouseUp);
-        }
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
         return () => {
           window.removeEventListener('mousemove', handleMouseMove);
           window.removeEventListener('mouseup', handleMouseUp);
         };
-      }, [isDragging, isResizing, dragOffset, resizeStart, onUpdate, sticky.id, position, size]);
+      }, [isDragging, isResizing, onUpdate, sticky.id]); // position, size を依存配列から除去
 
       const colors = [
         { bg: 'bg-yellow-100', border: 'border-yellow-300' },
