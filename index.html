@@ -47,6 +47,7 @@
       #root, .min-h-screen {
         display: block !important;
         height: auto !important;
+        min-height: 0 !important;
         overflow: visible !important;
         padding: 0 !important;
       }
@@ -122,7 +123,7 @@
       
       /* データセル - 高さを増やして文字を改行 */
       tbody td {
-        height: 110px !important;
+        height: 70px !important;
         padding: 2px 1px !important;
         vertical-align: top !important;
         word-break: break-all !important;
@@ -164,13 +165,6 @@
         font-size: 8pt !important;
         font-weight: bold !important;
       }
-
-      /* tfootを強制的に改ページして2枚目以降へ */
-      tfoot {
-        display: table-row-group !important;
-        break-before: page !important;
-        page-break-before: always !important;
-      }
       
       /* 一時保管・キャンセル待ち・空床を非表示（本館のみ印刷） */
       tfoot tr:not(.bg-yellow-100):not(.bg-green-100) {
@@ -188,9 +182,9 @@
         position: static !important;
       }
       
-      /* ページ分割防止 */
+      /* ページ分割許可（空白ページ防止） */
       tbody, table {
-        page-break-inside: avoid !important;
+        page-break-inside: auto !important;
       }
     }
     
@@ -5818,10 +5812,10 @@
                 </thead>
                 <tbody>
                   {rooms.map(room => (
-                    <tr key={room.id} className={`hover:bg-gray-50 ${room.status === 'hospitalized' ? 'bg-yellow-100' : room.status === 'moved_out' ? 'bg-red-100' : ''}`} style={{height: '130px'}}>
+                    <tr key={room.id} className={`hover:bg-gray-50 ${room.status === 'hospitalized' ? 'bg-yellow-100' : room.status === 'moved_out' ? 'bg-red-100' : ''}`}>
                       <td className="p-1 border-2 border-gray-400 align-middle bg-white sticky left-0 z-30 shadow-sm text-center" style={{width: '150px', minWidth: '150px'}}>
-                        <div className="flex flex-col items-center justify-center h-full">
-                          <span className="font-bold text-7xl text-gray-800 leading-none">{room.name}</span>
+                        <div className="flex flex-col items-center">
+                          <span className="font-bold text-3xl text-gray-800">{room.name}</span>
                           <div className="flex flex-wrap gap-1 mt-1 justify-center">
                             {room.features.includes('reserved_i') && <span className="text-lg bg-purple-100 text-purple-700 px-2 py-0.5 rounded whitespace-nowrap">I様</span>}
                             {room.features.includes('near_toilet') && <span className="text-lg bg-green-100 text-green-700 px-2 py-0.5 rounded whitespace-nowrap">トイレ</span>}
@@ -5858,7 +5852,7 @@
                         return (
                           <td 
                             key={dateStr} 
-                            className={`p-0 h-32 align-top relative 
+                            className={`p-0 h-24 align-top relative 
                               ${hasDoubleBooking ? 'border-4 border-red-500' : 'border-2 border-gray-400'}
                               ${isRoomDragOver ? 'bg-yellow-100 border-2 border-dashed border-yellow-500' : ''}`}
                             style={{
@@ -5975,16 +5969,10 @@
                                             {isCheckOut && sortedIds.length > 1 && <span className="text-[7px] text-red-600 leading-none">▲退</span>}
                                             {isCheckIn && sortedIds.length > 1 && <span className="text-[7px] text-green-700 leading-none">▼入</span>}
                                           </div>
-                                          <span className="block font-bold text-lg leading-tight">
-                                            {(() => {
-                                              const name = user.name;
-                                              const chunks = [];
-                                              for (let i = 0; i < name.length; i += 3) {
-                                                chunks.push(name.slice(i, i + 3));
-                                              }
-                                              return chunks.map((chunk, i) => <React.Fragment key={i}>{chunk}{i < chunks.length - 1 && <br />}</React.Fragment>);
-                                            })()}
-                                          </span>
+                                          <span className="truncate block" style={{
+                                            fontSize: user.name.length <= 4 ? '14px' : user.name.length === 5 ? '12px' : '10px',
+                                            fontWeight: 'bold'
+                                          }}>{user.name}</span>
                                         </div>
 
                                         <div className="flex justify-center gap-1 mt-0.5 z-20 flex-wrap">
