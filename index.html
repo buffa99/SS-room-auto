@@ -116,6 +116,7 @@
         left: auto !important;
       }
       
+<<<<<<< HEAD
       /* セルの高さを調整（メモ欄込み） */
       tbody td {
         height: 38px !important;
@@ -173,6 +174,36 @@
       }
       tfoot {
         display: table-footer-group;
+=======
+      /* セルの高さを半分に縮小 */
+      tbody td {
+        height: 30px !important;
+        max-height: 30px !important;
+        padding: 1px !important;
+        font-size: 5pt !important;
+        overflow: hidden !important;
+      }
+
+      /* 入浴アイコン・リネンアイコンを非表示 */
+      tbody .text-2xl,
+      [title*="入浴"],
+      [title*="リネン"] {
+        display: none !important;
+      }
+
+      /* メモ欄（input）を非表示 */
+      tbody input,
+      tbody input[type="text"],
+      .h-6 {
+        display: none !important;
+      }
+
+      /* 利用者名のみ表示（コンパクトに） */
+      tbody td div {
+        font-size: 5pt !important;
+        line-height: 1.0 !important;
+        overflow: hidden !important;
+>>>>>>> 9b894bf9dd42bb77cd512f9945d0b01615740f28
       }
       
       thead th {
