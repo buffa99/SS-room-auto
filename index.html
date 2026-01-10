@@ -152,10 +152,23 @@
         padding: 2px !important;
       }
       
+      /* フッター（tfoot）の圧縮 */
+      tfoot tr {
+        height: 20px !important;
+      }
+
       tfoot td, tfoot th {
-        height: auto !important;
+        height: 20px !important;
         min-height: 20px !important;
+        padding: 0px 2px !important;
         font-size: 7pt !important;
+        line-height: 20px !important;
+      }
+
+      /* フッター内の大きな文字クラスを印刷用に縮小 */
+      tfoot .text-xl, tfoot .text-2xl, tfoot .text-3xl {
+        font-size: 8pt !important;
+        line-height: 1 !important;
       }
       
       /* ページ分割許可 */
