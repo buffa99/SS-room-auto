@@ -51,6 +51,90 @@
       border-width: 4px !important;
       border-color: #ef4444 !important;
     }
+    
+    @media print {
+      @page {
+        size: A4 landscape;
+        margin: 3mm;
+      }
+      
+      body {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      
+      /* 非表示クラス - 完全に領域を消す */
+      .print-hidden {
+        display: none !important;
+        height: 0 !important;
+        max-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+        overflow: hidden !important;
+      }
+      
+      /* ヘッダー・サイドバー・不要なUIを非表示 */
+      header, .print-hidden-ui, [class*="bg-gradient-to-r"], .fixed {
+        display: none !important;
+      }
+      
+      /* テーブル調整 - A4に収める */
+      table {
+        width: 100% !important;
+        table-layout: fixed !important;
+        border-collapse: collapse !important;
+        transform: scale(0.75);
+        transform-origin: top left;
+      }
+      
+      /* セルの高さを自動調整 */
+      tbody td {
+        height: auto !important;
+        min-height: 40px !important;
+        padding: 2px !important;
+        font-size: 6pt !important;
+      }
+      
+      thead th {
+        height: auto !important;
+        min-height: 25px !important;
+        font-size: 6pt !important;
+        padding: 2px !important;
+      }
+      
+      tfoot td, tfoot th {
+        height: auto !important;
+        min-height: 20px !important;
+        font-size: 7pt !important;
+      }
+      
+      /* ページ分割許可 */
+      table, tbody, tr {
+        page-break-inside: auto !important;
+      }
+      
+      /* サイドバー非表示 */
+      .lg\:col-span-1 {
+        display: none !important;
+      }
+      
+      /* メインエリアを全幅に */
+      .lg\:col-span-4 {
+        width: 100% !important;
+        border: none !important;
+        box-shadow: none !important;
+      }
+      
+      /* スクロールコンテナの解除 */
+      .overflow-auto {
+        overflow: visible !important;
+        height: auto !important;
+      }
+    }
   </style>
 </head>
 <body class="bg-gray-50 text-gray-800">
@@ -783,6 +867,7 @@
       recalculateAllData, recalculateAllSchedules,
       setShowSettings, setShowLogoutConfirm,
       undo, canUndo,
+      onPrintMain, onPrintEmpty, // 印刷用ハンドラ
       fileInputRef,
       onAddSticky // 付箋追加用
     }) => {
@@ -790,7 +875,7 @@
         <>
           {/* 折りたたみ時のコンパクトヘッダー */}
           {headerCollapsed && (
-            <div className="mb-2 bg-blue-600 text-white px-4 py-2 rounded shadow-sm flex justify-between items-center print-hidden">
+            <div className="mb-2 bg-blue-600 text-white px-4 py-2 rounded shadow-sm flex justify-between items-center print-hidden-ui">
               <div className="flex items-center gap-2">
                 <button onClick={() => changeMonth(-1)} className="p-1 hover:bg-blue-500 rounded">
                   <ChevronLeft size={18}/>
@@ -812,7 +897,7 @@
           
           {/* 通常のヘッダー */}
           {!headerCollapsed && (
-          <header className="mb-4 bg-white p-4 rounded shadow-sm border-l-4 border-blue-600 flex flex-col md:flex-row justify-between items-center gap-4 print-hidden">
+          <header className="mb-4 bg-white p-4 rounded shadow-sm border-l-4 border-blue-600 flex flex-col md:flex-row justify-between items-center gap-4 print-hidden-ui">
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-bold text-gray-800">{APP_CONFIG.facilityName} 部屋割表（月間）</h1>
@@ -969,6 +1054,20 @@
                 className="hidden"
               />
               <button 
+                onClick={onPrintMain}
+                className="flex items-center gap-1 bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded font-bold text-sm"
+                title="本館（樹）のみ印刷"
+              >
+                🖨️ 樹 印刷
+              </button>
+              <button 
+                onClick={onPrintEmpty}
+                className="flex items-center gap-1 bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded font-bold text-sm"
+                title="空床・一時保管のみ印刷"
+              >
+                🖨️ 空床印刷
+              </button>
+              <button 
                 onClick={recalculateAllData}
                 className="flex items-center gap-1 bg-orange-600 hover:bg-orange-700 text-white px-3 py-2 rounded font-bold shadow transition-colors text-sm"
                 title="全利用者の部屋割り＋入浴スケジュールを再計算"
@@ -1032,7 +1131,7 @@
           {sidebarCollapsed && (
             <button
               onClick={() => setSidebarCollapsed(false)}
-              className="fixed left-0 top-1/2 transform -translate-y-1/2 bg-blue-600 text-white px-2 py-4 rounded-r-lg shadow-lg hover:bg-blue-700 z-30 print-hidden"
+              className="fixed left-0 top-1/2 transform -translate-y-1/2 bg-blue-600 text-white px-2 py-4 rounded-r-lg shadow-lg hover:bg-blue-700 z-30 print-hidden-ui"
               title="サイドバーを展開"
             >
               <span className="writing-mode-vertical">▶ 利用者</span>
@@ -1598,6 +1697,25 @@
       const [showArchivedModal, setShowArchivedModal] = useState(false); // 非表示リストモーダル
       const [archiveStats, setArchiveStats] = useState(null);
       const tableContainerRef = React.useRef(null);
+      
+      // 印刷モード state
+      const [printMode, setPrintMode] = useState(null); // 'main' | 'empty' | null
+
+      const handlePrintMain = () => {
+        setPrintMode('main');
+        setTimeout(() => {
+          window.print();
+          setPrintMode(null);
+        }, 100);
+      };
+
+      const handlePrintEmpty = () => {
+        setPrintMode('empty');
+        setTimeout(() => {
+          window.print();
+          setPrintMode(null);
+        }, 100);
+      };
       
       // 履歴管理（Undo用）
       const [history, setHistory] = useState([]);
@@ -3866,6 +3984,8 @@
             setShowLogoutConfirm={setShowLogoutConfirm}
             undo={undo}
             canUndo={history.length > 0}
+            onPrintMain={handlePrintMain}
+            onPrintEmpty={handlePrintEmpty}
             fileInputRef={fileInputRef}
             onAddSticky={handleAddSticky}
           />
@@ -5636,7 +5756,7 @@
                     </th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className={printMode === 'empty' ? 'print-hidden' : ''}>
                   {rooms.map(room => (
                     <tr key={room.id} className={`hover:bg-gray-50 ${room.status === 'hospitalized' ? 'bg-yellow-100' : room.status === 'moved_out' ? 'bg-red-100' : ''}`}>
                       <td className="p-1 border-2 border-gray-400 align-middle bg-white sticky left-0 z-30 shadow-sm text-center" style={{width: '150px', minWidth: '150px'}}>
@@ -5938,7 +6058,7 @@
                   {/* =========================================
                       1. 本館実績数（黄色い行）
                      ========================================= */}
-                  <tr className="bg-yellow-100" style={{height: '54px'}}>
+                  <tr className={`bg-yellow-100 ${printMode === 'empty' ? 'print-hidden' : ''}`} style={{height: '54px'}}>
                     <td className="p-2 border-2 border-gray-400 bg-yellow-200 font-bold text-xl text-gray-800 sticky left-0 z-30 text-center whitespace-nowrap" style={{width: '150px', minWidth: '150px'}}>
                       実績数
                     </td>
@@ -5997,7 +6117,7 @@
                     { id: TEMP_ROOM_1_ID, name: '一時保管①' },
                     { id: TEMP_ROOM_2_ID, name: '一時保管②' }
                   ].map((room) => (
-                    <tr key={room.id} id={`row-${room.id}`} className="bg-orange-50" style={{height: '60px'}}>
+                    <tr key={room.id} id={`row-${room.id}`} className={`bg-orange-50 ${printMode === 'main' ? 'print-hidden' : ''}`} style={{height: '60px'}}>
                       <td className="p-2 border-2 border-gray-400 bg-orange-200 font-bold text-sm text-center align-middle sticky left-0 z-30">
                         <div className="flex flex-col items-center gap-1">
                           <span>{room.name}</span>
@@ -6068,7 +6188,7 @@
                   ))}
 
                   {/* セパレーター（空行） */}
-                  <tr style={{ height: '20px', border: 'none' }}>
+                  <tr className={printMode !== null ? 'print-hidden' : ''} style={{ height: '20px', border: 'none' }}>
                     <td className="sticky left-0 z-30 bg-white border-none"></td>
                     <td colSpan={displayDates.length + 1} className="border-none bg-gray-50"></td>
                   </tr>
@@ -6077,7 +6197,7 @@
                       2. キャンセル待ちエリア（青/グレー系）
                      ========================================= */}
                   {customRows.map((customRow) => (
-                    <tr key={customRow.id} className="bg-slate-50" style={{height: '40px'}}>
+                    <tr key={customRow.id} className={`bg-slate-50 ${printMode === 'main' ? 'print-hidden' : ''}`} style={{height: '40px'}}>
                       <td className="p-2 border-2 border-gray-400 bg-slate-200 font-bold text-sm text-center align-middle sticky left-0 z-30">
                         <div className="flex flex-col items-center gap-1">
                           <span>{customRow.name}</span>
@@ -6138,7 +6258,7 @@
                     </tr>
                   ))}
                   {/* 追加ボタン */}
-                  <tr>
+                  <tr className={printMode !== null ? 'print-hidden' : ''}>
                     <td className="p-1 border-r-2 border-gray-400 sticky left-0 z-30 bg-white">
                       <button
                         onClick={handleAddCustomRow}
@@ -6153,7 +6273,7 @@
                   {/* =========================================
                       3. スペーサー（空白行）
                      ========================================= */}
-                  <tr style={{ height: '24px', border: 'none' }}>
+                  <tr className={printMode !== null ? 'print-hidden' : ''} style={{ height: '24px', border: 'none' }}>
                     <td className="sticky left-0 z-30 bg-white border-none"></td>
                     <td colSpan={displayDates.length + 1} className="border-none"></td>
                   </tr>
@@ -6162,7 +6282,7 @@
                       4. 空床エリア（紫）
                      ========================================= */}
                   {currentMonthTempRooms.map((tempRoom, index) => (
-                    <tr key={tempRoom.id} className={`bg-purple-50 transition-colors ${dragTempRoomId === tempRoom.id ? 'opacity-50' : ''}`} style={{height: '60px'}}>
+                    <tr key={tempRoom.id} className={`bg-purple-50 transition-colors ${dragTempRoomId === tempRoom.id ? 'opacity-50' : ''} ${printMode === 'main' ? 'print-hidden' : ''}`} style={{height: '60px'}}>
                       <td 
                         className={`p-2 border-2 border-gray-400 font-bold text-sm text-center align-middle sticky left-0 z-30 cursor-move
                           ${dragTempRoomId === tempRoom.id ? 'bg-purple-300' : 'bg-purple-100'}
@@ -6279,7 +6399,7 @@
                   ))}
 
                   {/* 空床追加ボタン */}
-                  <tr>
+                  <tr className={printMode !== null ? 'print-hidden' : ''}>
                     <td className="p-1 border-r-2 border-gray-400 sticky left-0 z-30 bg-white">
                       <button
                         onClick={handleAddTempRoom}
@@ -6300,7 +6420,7 @@
                   {/* =========================================
                       5. 空床実績
                      ========================================= */}
-                  <tr className="bg-purple-100" style={{height: '40px'}}>
+                  <tr className={`bg-purple-100 ${printMode === 'main' ? 'print-hidden' : ''}`} style={{height: '40px'}}>
                     <td className="p-2 border-2 border-gray-400 bg-purple-200 font-bold text-sm text-gray-800 sticky left-0 z-30 text-center">
                       空床実績
                     </td>
@@ -6325,7 +6445,7 @@
                   {/* =========================================
                       6. 合計実績（緑：本館＋空床）
                      ========================================= */}
-                  <tr className="bg-green-100 h-16">
+                  <tr className={`bg-green-100 h-16 ${printMode === 'main' ? 'print-hidden' : ''}`}>
                     <td className="p-2 border-2 border-gray-400 bg-green-300 font-bold text-xl text-gray-800 sticky left-0 z-30 text-center">
                       合計実績
                     </td>
