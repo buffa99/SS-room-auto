@@ -139,10 +139,18 @@
         overflow: hidden !important;
       }
 
+      /* 左端（部屋名）の幅を固定 */
+      table th:first-child, table td:first-child {
+        width: 60px !important;
+        min-width: 60px !important;
+        max-width: 60px !important;
+      }
+
       /* 実績列を確実に表示 */
       td:last-child, th:last-child {
         display: table-cell !important;
-        width: 30px !important;
+        width: 240px !important;
+        min-width: 240px !important;
       }
       
       thead th {
@@ -5756,7 +5764,7 @@
               <table className={`w-full border-collapse text-xs ${displayDates.length > 14 ? 'min-w-[2000px]' : ''}`}>
                 <thead className="sticky top-0 z-40">
                   <tr>
-                    <th className="p-2 border-2 border-gray-400 bg-gray-100 text-center text-xl font-bold sticky left-0 z-50 shadow-sm" style={{width: '150px', minWidth: '150px'}}>部屋</th>
+                    <th className="p-2 border-2 border-gray-400 bg-gray-100 text-center text-xl font-bold sticky left-0 z-50 shadow-sm" style={{width: '60px', minWidth: '60px'}}>部屋</th>
                     {displayDates.map((dateStr, i) => {
                       const dateObj = parseLocalDate(dateStr);
                       const dayOfWeek = dateObj.getDay();
@@ -5817,7 +5825,7 @@
                         </th>
                       );
                     })}
-                    <th className="p-1 border-2 border-gray-400 text-center bg-yellow-100 min-w-[150px]">
+                    <th className="p-1 border-2 border-gray-400 text-center bg-yellow-100 min-w-[240px]">
                       <div className="text-base font-bold text-gray-700">実績</div>
                     </th>
                   </tr>
@@ -5825,9 +5833,9 @@
                 <tbody className={printMode === 'empty' ? 'print-hidden' : ''}>
                   {rooms.map(room => (
                     <tr key={room.id} className={`hover:bg-gray-50 ${room.status === 'hospitalized' ? 'bg-yellow-100' : room.status === 'moved_out' ? 'bg-red-100' : ''}`}>
-                      <td className="p-1 border-2 border-gray-400 align-middle bg-white sticky left-0 z-30 shadow-sm text-center" style={{width: '150px', minWidth: '150px'}}>
+                      <td className="p-1 border-2 border-gray-400 align-middle bg-white sticky left-0 z-30 shadow-sm text-center" style={{width: '60px', minWidth: '60px'}}>
                         <div className="flex flex-col items-center">
-                          <span className="font-bold text-3xl text-gray-800">{room.name}</span>
+                          <span className="font-bold text-lg text-gray-800">{room.name}</span>
                           <div className="flex flex-wrap gap-1 mt-1 justify-center">
                             {room.features.includes('reserved_i') && <span className="text-lg bg-purple-100 text-purple-700 px-2 py-0.5 rounded whitespace-nowrap">I様</span>}
                             {room.features.includes('near_toilet') && <span className="text-lg bg-green-100 text-green-700 px-2 py-0.5 rounded whitespace-nowrap">トイレ</span>}
@@ -6108,7 +6116,7 @@
                         );
                       })}
                       {/* 部屋ごとの月間実績 */}
-                      <td className="p-2 border-2 border-gray-400 bg-yellow-50 text-center align-middle min-w-[150px]">
+                      <td className="p-2 border-2 border-gray-400 bg-yellow-50 text-center align-middle min-w-[240px]">
                         <span className="font-bold text-2xl text-gray-800">
                           {displayDates.reduce((count, dateStr) => {
                             const key = `${dateStr}-${room.id}`;
@@ -6125,7 +6133,7 @@
                       1. 本館実績数（黄色い行）
                      ========================================= */}
                   <tr className={`bg-yellow-100 ${printMode === 'empty' ? 'print-hidden' : ''}`}>
-                    <td className="p-2 border-2 border-gray-400 bg-yellow-200 font-bold text-xl text-gray-800 sticky left-0 z-30 text-center whitespace-nowrap" style={{width: '150px', minWidth: '150px'}}>
+                    <td className="p-2 border-2 border-gray-400 bg-yellow-200 font-bold text-xl text-gray-800 sticky left-0 z-30 text-center whitespace-nowrap" style={{width: '60px', minWidth: '60px'}}>
                       実績数
                     </td>
                     {displayDates.map(dateStr => {
@@ -6152,7 +6160,7 @@
                       );
                     })}
                     {/* 本館の期間合計・稼働率 */}
-                    <td className="p-2 border-2 border-gray-400 bg-yellow-200 text-center min-w-[150px]">
+                    <td className="p-2 border-2 border-gray-400 bg-yellow-200 text-center min-w-[240px]">
                       {(() => {
                         // 本館のみの集計
                         const totalCount = displayDates.reduce((total, dateStr) => {
@@ -6545,7 +6553,7 @@
                       );
                     })}
                     
-                    <td className="p-2 border-2 border-gray-400 bg-green-300 text-center min-w-[150px]">
+                    <td className="p-2 border-2 border-gray-400 bg-green-300 text-center min-w-[240px]">
                       {(() => {
                         let totalPeriodCount = 0;
                         displayDates.forEach(dateStr => {
