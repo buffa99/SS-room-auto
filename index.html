@@ -91,34 +91,58 @@
         transform-origin: top left;
       }
       
-      /* セルの高さを半分に縮小 */
+      /* セルの高さを調整（メモ欄込み） */
       tbody td {
-        height: 30px !important;
-        max-height: 30px !important;
+        height: 38px !important;
+        max-height: 38px !important;
         padding: 1px !important;
-        font-size: 5pt !important;
+        font-size: 7pt !important;
         overflow: hidden !important;
       }
 
-      /* 入浴アイコン・リネンアイコンを非表示 */
-      tbody .text-2xl,
-      [title*="入浴"],
-      [title*="リネン"] {
-        display: none !important;
+      /* 入浴・リネンアイコンを小さく表示 */
+      tbody td div span.text-2xl {
+        font-size: 6pt !important;
+        display: inline-block !important;
+        vertical-align: middle !important;
+        margin-right: 2px !important;
       }
 
-      /* メモ欄（input）を非表示 */
-      tbody input,
-      tbody input[type="text"],
+      /* 実績列の数字は通常サイズで表示 */
+      tbody td > span.text-2xl {
+        font-size: 10pt !important;
+        display: inline !important;
+      }
+
+      /* メモ欄（input）を表示・調整 */
+      tbody input[type="text"] {
+        display: block !important;
+        height: 12px !important;
+        font-size: 6pt !important;
+        line-height: 12px !important;
+        margin-top: 1px !important;
+        background: transparent !important;
+        border: none !important;
+      }
+      
+      /* メモ欄コンテナ */
       .h-6 {
-        display: none !important;
+        display: block !important;
+        height: 12px !important;
+        min-height: 12px !important;
       }
 
-      /* 利用者名のみ表示（コンパクトに） */
+      /* 利用者名表示調整 */
       tbody td div {
-        font-size: 5pt !important;
-        line-height: 1.0 !important;
+        font-size: 7pt !important;
+        line-height: 1.1 !important;
         overflow: hidden !important;
+      }
+
+      /* 実績列を確実に表示 */
+      td:last-child, th:last-child {
+        display: table-cell !important;
+        width: 30px !important;
       }
       
       thead th {
