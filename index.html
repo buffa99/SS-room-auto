@@ -87,36 +87,10 @@
         width: 100% !important;
         table-layout: fixed !important;
         border-collapse: collapse !important;
-      }
-
-      /* 全てのセルで幅を統一 */
-      th, td {
-        width: auto !important;
-        min-width: 0 !important;
-        max-width: none !important;
-      }
-
-      /* 左端の部屋名セルの幅を固定 */
-      th:first-child, td:first-child {
-        width: 50px !important;
-        min-width: 50px !important;
-        max-width: 50px !important;
-      }
-
-      /* 右端の実績セルの幅を固定 */
-      th:last-child, td:last-child {
-        width: 35px !important;
-        min-width: 35px !important;
-        max-width: 35px !important;
-      }
-
-      /* stickyを完全に解除 */
-      .sticky, th, td {
-        position: static !important;
-        left: auto !important;
+        transform: scale(0.75);
+        transform-origin: top left;
       }
       
-<<<<<<< HEAD
       /* セルの高さを調整（メモ欄込み） */
       tbody td {
         height: 38px !important;
@@ -127,7 +101,7 @@
       }
 
       /* 入浴・リネンアイコンを小さく表示 */
-      tbody td div span.text-base {
+      tbody td div span.text-2xl {
         font-size: 6pt !important;
         display: inline-block !important;
         vertical-align: middle !important;
@@ -165,45 +139,10 @@
         overflow: hidden !important;
       }
 
-      /* thead と tbody のズレ防止 */
-      thead, tbody, tfoot {
-        display: table-header-group;
-      }
-      tbody {
-        display: table-row-group;
-      }
-      tfoot {
-        display: table-footer-group;
-=======
-      /* セルの高さを半分に縮小 */
-      tbody td {
-        height: 30px !important;
-        max-height: 30px !important;
-        padding: 1px !important;
-        font-size: 5pt !important;
-        overflow: hidden !important;
-      }
-
-      /* 入浴アイコン・リネンアイコンを非表示 */
-      tbody .text-2xl,
-      [title*="入浴"],
-      [title*="リネン"] {
-        display: none !important;
-      }
-
-      /* メモ欄（input）を非表示 */
-      tbody input,
-      tbody input[type="text"],
-      .h-6 {
-        display: none !important;
-      }
-
-      /* 利用者名のみ表示（コンパクトに） */
-      tbody td div {
-        font-size: 5pt !important;
-        line-height: 1.0 !important;
-        overflow: hidden !important;
->>>>>>> 9b894bf9dd42bb77cd512f9945d0b01615740f28
+      /* 実績列を確実に表示 */
+      td:last-child, th:last-child {
+        display: table-cell !important;
+        width: 30px !important;
       }
       
       thead th {
@@ -6057,8 +5996,8 @@
                                               }
                                                 }
                                               }}
-                                              className={`text-base cursor-pointer hover:opacity-80 drop-shadow-md rounded ${daySchedule.mustBath ? 'cursor-grab' : 'hover:bg-red-100'}`}
-                                              title={daySchedule.mustBath ? "退所前日入浴（ドラッグで移動）" : "入浴予定（クリックで削除/ドラッグで移動）"}>🔴</span>
+                                              className={`text-2xl cursor-pointer hover:opacity-80 drop-shadow-md rounded ${daySchedule.mustBath ? 'cursor-grab' : 'hover:bg-red-100'}`}
+                                              title={daySchedule.mustBath ? "退所前日入浴（ドラッグで移動）" : "入浴予定（クリックで削除/ドラッグで移動）"}>🛁</span>
                                           ) : (
                                             <button
                                               onClick={(e) => {
@@ -6080,7 +6019,7 @@
                                               }}
                                               className="text-[10px] text-blue-400 hover:text-blue-600 hover:bg-blue-100 rounded px-1 opacity-0 group-hover/cell:opacity-100 transition-opacity"
                                               title="入浴を追加"
-                                            >+🔴</button>
+                                            >+🛁</button>
                                           )}
                                           {daySchedule.linen ? (
                                             <span 
@@ -6104,8 +6043,8 @@
                                                   database.ref('data/' + STORAGE_KEY_USERS).set(newUsers);
                                                 }
                                               }}
-                                            className="text-base cursor-pointer hover:opacity-80 drop-shadow-md hover:bg-red-100 rounded" 
-                                              title="リネン交換（クリックで削除/ドラッグで移動）">🔵</span>
+                                              className="text-2xl cursor-pointer hover:opacity-80 drop-shadow-md hover:bg-red-100 rounded" 
+                                              title="リネン交換（クリックで削除/ドラッグで移動）">🛏️</span>
                                           ) : (
                                             <button
                                               onClick={(e) => {
@@ -6126,7 +6065,7 @@
                                               }}
                                               className="text-[10px] text-green-400 hover:text-green-600 hover:bg-green-100 rounded px-1 opacity-0 group-hover/cell:opacity-100 transition-opacity"
                                               title="リネン交換を追加"
-                                            >+🔵</button>
+                                            >+🛏️</button>
                                           )}
                                         </div>
                                       </div>
