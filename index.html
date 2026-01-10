@@ -5844,7 +5844,7 @@
                         return (
                           <td 
                             key={dateStr} 
-                            className={`p-0 h-24 align-top relative 
+                            className={`p-0 h-20 align-top relative 
                               ${hasDoubleBooking ? 'border-4 border-red-500' : 'border-2 border-gray-400'}
                               ${isRoomDragOver ? 'bg-yellow-100 border-2 border-dashed border-yellow-500' : ''}`}
                             style={{
@@ -6080,7 +6080,7 @@
                               <MemoInput
                                 value={memos[`${dateStr}-${room.id}`] || ''}
                                 onSave={(val) => handleMemoChange(dateStr, room.id, val)}
-                                className={`w-full h-6 text-[9px] border-t border-gray-200 p-1 outline-none text-red-600 font-bold placeholder-gray-300 focus:bg-yellow-50 print-placeholder-transparent ${isPast ? 'bg-gray-300' : 'bg-white'}`}
+                                className={`w-full h-5 text-[9px] border-t border-gray-200 p-1 outline-none text-red-600 font-bold placeholder-gray-300 focus:bg-yellow-50 print-placeholder-transparent ${isPast ? 'bg-gray-300' : 'bg-white'}`}
                                 placeholder="メモ"
                               />
                             </div>
@@ -6104,7 +6104,7 @@
                   {/* =========================================
                       1. 本館実績数（黄色い行）
                      ========================================= */}
-                  <tr className={`bg-yellow-100 ${printMode === 'empty' ? 'print-hidden' : ''}`} style={{height: '54px'}}>
+                  <tr className={`bg-yellow-100 ${printMode === 'empty' ? 'print-hidden' : ''}`} style={{height: '43px'}}>
                     <td className="p-2 border-2 border-gray-400 bg-yellow-200 font-bold text-xl text-gray-800 sticky left-0 z-30 text-center whitespace-nowrap" style={{width: '150px', minWidth: '150px'}}>
                       実績数
                     </td>
@@ -6163,7 +6163,7 @@
                     { id: TEMP_ROOM_1_ID, name: '一時保管①' },
                     { id: TEMP_ROOM_2_ID, name: '一時保管②' }
                   ].map((room) => (
-                    <tr key={room.id} id={`row-${room.id}`} className={`bg-orange-50 ${printMode === 'main' ? 'print-hidden' : ''}`} style={{height: '60px'}}>
+                    <tr key={room.id} id={`row-${room.id}`} className={`bg-orange-50 ${printMode === 'main' ? 'print-hidden' : ''}`} style={{height: '48px'}}>
                       <td className="p-2 border-2 border-gray-400 bg-orange-200 font-bold text-sm text-center align-middle sticky left-0 z-30">
                         <div className="flex flex-col items-center gap-1">
                           <span>{room.name}</span>
@@ -6243,7 +6243,7 @@
                       2. キャンセル待ちエリア（青/グレー系）
                      ========================================= */}
                   {customRows.map((customRow) => (
-                    <tr key={customRow.id} className={`bg-slate-50 ${printMode === 'main' ? 'print-hidden' : ''}`} style={{height: '40px'}}>
+                    <tr key={customRow.id} className={`bg-slate-50 ${printMode === 'main' ? 'print-hidden' : ''}`} style={{height: '32px'}}>
                       <td className="p-2 border-2 border-gray-400 bg-slate-200 font-bold text-sm text-center align-middle sticky left-0 z-30">
                         <div className="flex flex-col items-center gap-1">
                           <span>{customRow.name}</span>
@@ -6328,7 +6328,7 @@
                       4. 空床エリア（紫）
                      ========================================= */}
                   {currentMonthTempRooms.map((tempRoom, index) => (
-                    <tr key={tempRoom.id} className={`bg-purple-50 transition-colors ${dragTempRoomId === tempRoom.id ? 'opacity-50' : ''} ${printMode === 'main' ? 'print-hidden' : ''}`} style={{height: '60px'}}>
+                    <tr key={tempRoom.id} className={`bg-purple-50 transition-colors ${dragTempRoomId === tempRoom.id ? 'opacity-50' : ''} ${printMode === 'main' ? 'print-hidden' : ''}`} style={{height: '48px'}}>
                       <td 
                         className={`p-2 border-2 border-gray-400 font-bold text-sm text-center align-middle sticky left-0 z-30 cursor-move
                           ${dragTempRoomId === tempRoom.id ? 'bg-purple-300' : 'bg-purple-100'}
@@ -6433,7 +6433,7 @@
                               <MemoInput
                                 value={memos[`${dateStr}-${tempRoom.id}`] || ''}
                                 onSave={(val) => handleMemoChange(dateStr, tempRoom.id, val)}
-                                className={`w-full h-6 text-[9px] border-t border-purple-300 p-1 outline-none text-red-600 font-bold placeholder-gray-300 focus:bg-yellow-50 print-placeholder-transparent mt-auto ${isPast ? 'bg-gray-400' : 'bg-purple-50'}`}
+                                className={`w-full h-5 text-[9px] border-t border-purple-300 p-1 outline-none text-red-600 font-bold placeholder-gray-300 focus:bg-yellow-50 print-placeholder-transparent mt-auto ${isPast ? 'bg-gray-400' : 'bg-purple-50'}`}
                                 placeholder="メモ"
                               />
                             </div>
@@ -6466,7 +6466,7 @@
                   {/* =========================================
                       5. 空床実績
                      ========================================= */}
-                  <tr className={`bg-purple-100 ${printMode === 'main' ? 'print-hidden' : ''}`} style={{height: '40px'}}>
+                  <tr className={`bg-purple-100 ${printMode === 'main' ? 'print-hidden' : ''}`} style={{height: '32px'}}>
                     <td className="p-2 border-2 border-gray-400 bg-purple-200 font-bold text-sm text-gray-800 sticky left-0 z-30 text-center">
                       空床実績
                     </td>
@@ -6491,7 +6491,7 @@
                   {/* =========================================
                       6. 合計実績（緑：本館＋空床）
                      ========================================= */}
-                  <tr className={`bg-green-100 h-16 ${printMode === 'main' ? 'print-hidden' : ''}`}>
+                  <tr className={`bg-green-100 h-12 ${printMode === 'main' ? 'print-hidden' : ''}`}>
                     <td className="p-2 border-2 border-gray-400 bg-green-300 font-bold text-xl text-gray-800 sticky left-0 z-30 text-center">
                       合計実績
                     </td>
