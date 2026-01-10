@@ -32,7 +32,7 @@
       
       @page {
         size: A4 landscape;
-        margin: 5mm;
+        margin: 2mm;
       }
       
       body {
@@ -133,7 +133,7 @@
       /* 利用者名 - 文字を改行させる */
       tbody td span, 
       tbody td div {
-        font-size: 6pt !important;
+        font-size: 9pt !important;
         line-height: 1.2 !important;
         word-break: break-all !important;
         overflow-wrap: break-word !important;
@@ -148,7 +148,7 @@
       
       /* アイコン（入浴・リネン） */
       .text-2xl {
-        font-size: 10pt !important;
+        font-size: 8pt !important;
         display: inline-block !important;
       }
       
@@ -159,6 +159,10 @@
         padding: 0 1px !important;
       }
       
+      tfoot {
+        display: table-row-group !important;
+      }
+      
       /* フッター行（実績数） */
       tfoot td, tfoot th {
         height: 25px !important;
@@ -166,8 +170,8 @@
         font-weight: bold !important;
       }
       
-      /* 一時保管・キャンセル待ち・空床を非表示（本館のみ印刷） */
-      tfoot tr:not(.bg-yellow-100):not(.bg-green-100) {
+      /* 実績行（黄色）以外を非表示（合計実績・一時保管なども隠す） */
+      tfoot tr:not(.bg-yellow-100) {
         display: none !important;
       }
       
@@ -185,6 +189,11 @@
       /* ページ分割許可（空白ページ防止） */
       tbody, table {
         page-break-inside: auto !important;
+      }
+      
+      /* 行の途中での改ページ防止（追加対策） */
+      tr {
+        page-break-inside: avoid !important;
       }
     }
     
