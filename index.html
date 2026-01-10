@@ -91,12 +91,34 @@
         transform-origin: top left;
       }
       
-      /* セルの高さを自動調整 */
+      /* セルの高さを半分に縮小 */
       tbody td {
-        height: auto !important;
-        min-height: 40px !important;
-        padding: 2px !important;
-        font-size: 6pt !important;
+        height: 30px !important;
+        max-height: 30px !important;
+        padding: 1px !important;
+        font-size: 5pt !important;
+        overflow: hidden !important;
+      }
+
+      /* 入浴アイコン・リネンアイコンを非表示 */
+      tbody .text-2xl,
+      [title*="入浴"],
+      [title*="リネン"] {
+        display: none !important;
+      }
+
+      /* メモ欄（input）を非表示 */
+      tbody input,
+      tbody input[type="text"],
+      .h-6 {
+        display: none !important;
+      }
+
+      /* 利用者名のみ表示（コンパクトに） */
+      tbody td div {
+        font-size: 5pt !important;
+        line-height: 1.0 !important;
+        overflow: hidden !important;
       }
       
       thead th {
