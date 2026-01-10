@@ -87,8 +87,33 @@
         width: 100% !important;
         table-layout: fixed !important;
         border-collapse: collapse !important;
-        transform: scale(0.75);
-        transform-origin: top left;
+      }
+
+      /* 全てのセルで幅を統一 */
+      th, td {
+        width: auto !important;
+        min-width: 0 !important;
+        max-width: none !important;
+      }
+
+      /* 左端の部屋名セルの幅を固定 */
+      th:first-child, td:first-child {
+        width: 50px !important;
+        min-width: 50px !important;
+        max-width: 50px !important;
+      }
+
+      /* 右端の実績セルの幅を固定 */
+      th:last-child, td:last-child {
+        width: 35px !important;
+        min-width: 35px !important;
+        max-width: 35px !important;
+      }
+
+      /* stickyを完全に解除 */
+      .sticky, th, td {
+        position: static !important;
+        left: auto !important;
       }
       
       /* セルの高さを調整（メモ欄込み） */
@@ -139,10 +164,15 @@
         overflow: hidden !important;
       }
 
-      /* 実績列を確実に表示 */
-      td:last-child, th:last-child {
-        display: table-cell !important;
-        width: 30px !important;
+      /* thead と tbody のズレ防止 */
+      thead, tbody, tfoot {
+        display: table-header-group;
+      }
+      tbody {
+        display: table-row-group;
+      }
+      tfoot {
+        display: table-footer-group;
       }
       
       thead th {
@@ -5997,7 +6027,7 @@
                                                 }
                                               }}
                                               className={`text-2xl cursor-pointer hover:opacity-80 drop-shadow-md rounded ${daySchedule.mustBath ? 'cursor-grab' : 'hover:bg-red-100'}`}
-                                              title={daySchedule.mustBath ? "退所前日入浴（ドラッグで移動）" : "入浴予定（クリックで削除/ドラッグで移動）"}>🛁</span>
+                                              title={daySchedule.mustBath ? "退所前日入浴（ドラッグで移動）" : "入浴予定（クリックで削除/ドラッグで移動）"}>🔴</span>
                                           ) : (
                                             <button
                                               onClick={(e) => {
@@ -6019,7 +6049,7 @@
                                               }}
                                               className="text-[10px] text-blue-400 hover:text-blue-600 hover:bg-blue-100 rounded px-1 opacity-0 group-hover/cell:opacity-100 transition-opacity"
                                               title="入浴を追加"
-                                            >+🛁</button>
+                                            >+🔴</button>
                                           )}
                                           {daySchedule.linen ? (
                                             <span 
@@ -6044,7 +6074,7 @@
                                                 }
                                               }}
                                               className="text-2xl cursor-pointer hover:opacity-80 drop-shadow-md hover:bg-red-100 rounded" 
-                                              title="リネン交換（クリックで削除/ドラッグで移動）">🛏️</span>
+                                              title="リネン交換（クリックで削除/ドラッグで移動）">🔵</span>
                                           ) : (
                                             <button
                                               onClick={(e) => {
@@ -6065,7 +6095,7 @@
                                               }}
                                               className="text-[10px] text-green-400 hover:text-green-600 hover:bg-green-100 rounded px-1 opacity-0 group-hover/cell:opacity-100 transition-opacity"
                                               title="リネン交換を追加"
-                                            >+🛏️</button>
+                                            >+🔵</button>
                                           )}
                                         </div>
                                       </div>
