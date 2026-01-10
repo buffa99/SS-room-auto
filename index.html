@@ -160,14 +160,14 @@
       tfoot td, tfoot th {
         height: 20px !important;
         min-height: 20px !important;
-        padding: 0px 2px !important;
+        padding: 0 !important;
         font-size: 7pt !important;
         line-height: 20px !important;
       }
 
       /* フッター内の大きな文字クラスを印刷用に縮小 */
       tfoot .text-xl, tfoot .text-2xl, tfoot .text-3xl {
-        font-size: 8pt !important;
+        font-size: 9pt !important;
         line-height: 1 !important;
       }
       
@@ -6117,7 +6117,7 @@
                   {/* =========================================
                       1. 本館実績数（黄色い行）
                      ========================================= */}
-                  <tr className={`bg-yellow-100 ${printMode === 'empty' ? 'print-hidden' : ''}`} style={{height: '43px'}}>
+                  <tr className={`bg-yellow-100 ${printMode === 'empty' ? 'print-hidden' : ''}`}>
                     <td className="p-2 border-2 border-gray-400 bg-yellow-200 font-bold text-xl text-gray-800 sticky left-0 z-30 text-center whitespace-nowrap" style={{width: '150px', minWidth: '150px'}}>
                       実績数
                     </td>
@@ -6176,7 +6176,7 @@
                     { id: TEMP_ROOM_1_ID, name: '一時保管①' },
                     { id: TEMP_ROOM_2_ID, name: '一時保管②' }
                   ].map((room) => (
-                    <tr key={room.id} id={`row-${room.id}`} className={`bg-orange-50 ${printMode === 'main' ? 'print-hidden' : ''}`} style={{height: '48px'}}>
+                    <tr key={room.id} id={`row-${room.id}`} className={`bg-orange-50 ${printMode === 'main' ? 'print-hidden' : ''}`}>
                       <td className="p-2 border-2 border-gray-400 bg-orange-200 font-bold text-sm text-center align-middle sticky left-0 z-30">
                         <div className="flex flex-col items-center gap-1">
                           <span>{room.name}</span>
@@ -6247,7 +6247,7 @@
                   ))}
 
                   {/* セパレーター（空行） */}
-                  <tr className={printMode !== null ? 'print-hidden' : ''} style={{ height: '20px', border: 'none' }}>
+                  <tr className={`print-hidden ${printMode !== null ? 'print-hidden' : ''}`} style={{ height: '20px', border: 'none' }}>
                     <td className="sticky left-0 z-30 bg-white border-none"></td>
                     <td colSpan={displayDates.length + 1} className="border-none bg-gray-50"></td>
                   </tr>
@@ -6256,7 +6256,7 @@
                       2. キャンセル待ちエリア（青/グレー系）
                      ========================================= */}
                   {customRows.map((customRow) => (
-                    <tr key={customRow.id} className={`bg-slate-50 ${printMode === 'main' ? 'print-hidden' : ''}`} style={{height: '32px'}}>
+                    <tr key={customRow.id} className={`bg-slate-50 ${printMode === 'main' ? 'print-hidden' : ''}`}>
                       <td className="p-2 border-2 border-gray-400 bg-slate-200 font-bold text-sm text-center align-middle sticky left-0 z-30">
                         <div className="flex flex-col items-center gap-1">
                           <span>{customRow.name}</span>
@@ -6317,7 +6317,7 @@
                     </tr>
                   ))}
                   {/* 追加ボタン */}
-                  <tr className={printMode !== null ? 'print-hidden' : ''}>
+                  <tr className={`print-hidden ${printMode !== null ? 'print-hidden' : ''}`}>
                     <td className="p-1 border-r-2 border-gray-400 sticky left-0 z-30 bg-white">
                       <button
                         onClick={handleAddCustomRow}
@@ -6332,7 +6332,7 @@
                   {/* =========================================
                       3. スペーサー（空白行）
                      ========================================= */}
-                  <tr className={printMode !== null ? 'print-hidden' : ''} style={{ height: '24px', border: 'none' }}>
+                  <tr className={`print-hidden ${printMode !== null ? 'print-hidden' : ''}`} style={{ height: '24px', border: 'none' }}>
                     <td className="sticky left-0 z-30 bg-white border-none"></td>
                     <td colSpan={displayDates.length + 1} className="border-none"></td>
                   </tr>
@@ -6341,7 +6341,7 @@
                       4. 空床エリア（紫）
                      ========================================= */}
                   {currentMonthTempRooms.map((tempRoom, index) => (
-                    <tr key={tempRoom.id} className={`bg-purple-50 transition-colors ${dragTempRoomId === tempRoom.id ? 'opacity-50' : ''} ${printMode === 'main' ? 'print-hidden' : ''}`} style={{height: '48px'}}>
+                    <tr key={tempRoom.id} className={`bg-purple-50 transition-colors ${dragTempRoomId === tempRoom.id ? 'opacity-50' : ''} ${printMode === 'main' ? 'print-hidden' : ''}`}>
                       <td 
                         className={`p-2 border-2 border-gray-400 font-bold text-sm text-center align-middle sticky left-0 z-30 cursor-move
                           ${dragTempRoomId === tempRoom.id ? 'bg-purple-300' : 'bg-purple-100'}
@@ -6458,7 +6458,7 @@
                   ))}
 
                   {/* 空床追加ボタン */}
-                  <tr className={printMode !== null ? 'print-hidden' : ''}>
+                  <tr className={`print-hidden ${printMode !== null ? 'print-hidden' : ''}`}>
                     <td className="p-1 border-r-2 border-gray-400 sticky left-0 z-30 bg-white">
                       <button
                         onClick={handleAddTempRoom}
@@ -6479,7 +6479,7 @@
                   {/* =========================================
                       5. 空床実績
                      ========================================= */}
-                  <tr className={`bg-purple-100 ${printMode === 'main' ? 'print-hidden' : ''}`} style={{height: '32px'}}>
+                  <tr className={`bg-purple-100 ${printMode === 'main' ? 'print-hidden' : ''}`}>
                     <td className="p-2 border-2 border-gray-400 bg-purple-200 font-bold text-sm text-gray-800 sticky left-0 z-30 text-center">
                       空床実績
                     </td>
