@@ -154,21 +154,28 @@
       
       /* フッター（tfoot）の圧縮 */
       tfoot tr {
-        height: 20px !important;
+        height: 14px !important;
       }
 
       tfoot td, tfoot th {
-        height: 20px !important;
-        min-height: 20px !important;
+        height: 14px !important;
+        min-height: 14px !important;
         padding: 0 !important;
-        font-size: 7pt !important;
-        line-height: 20px !important;
+        font-size: 6pt !important;
+        line-height: 14px !important;
+        border-top-width: 1px !important;
+        border-bottom-width: 1px !important;
       }
 
       /* フッター内の大きな文字クラスを印刷用に縮小 */
       tfoot .text-xl, tfoot .text-2xl, tfoot .text-3xl {
-        font-size: 9pt !important;
+        font-size: 7pt !important;
         line-height: 1 !important;
+      }
+
+      /* フッター内のアイコンやボタン、入力欄があれば非表示または極小化 */
+      tfoot button, tfoot .memo-input, tfoot input {
+        display: none !important;
       }
       
       /* ページ分割許可 */
@@ -6504,7 +6511,7 @@
                   {/* =========================================
                       6. 合計実績（緑：本館＋空床）
                      ========================================= */}
-                  <tr className={`bg-green-100 h-12 ${printMode === 'main' ? 'print-hidden' : ''}`}>
+                  <tr className={`bg-green-100 ${printMode === 'main' ? 'print-hidden' : ''}`}>
                     <td className="p-2 border-2 border-gray-400 bg-green-300 font-bold text-xl text-gray-800 sticky left-0 z-30 text-center">
                       合計実績
                     </td>
