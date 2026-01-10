@@ -127,7 +127,7 @@
       }
 
       /* 入浴・リネンアイコンを小さく表示 */
-      tbody td div span.text-2xl {
+      tbody td div span.text-base {
         font-size: 6pt !important;
         display: inline-block !important;
         vertical-align: middle !important;
@@ -6057,7 +6057,7 @@
                                               }
                                                 }
                                               }}
-                                              className={`text-2xl cursor-pointer hover:opacity-80 drop-shadow-md rounded ${daySchedule.mustBath ? 'cursor-grab' : 'hover:bg-red-100'}`}
+                                              className={`text-base cursor-pointer hover:opacity-80 drop-shadow-md rounded ${daySchedule.mustBath ? 'cursor-grab' : 'hover:bg-red-100'}`}
                                               title={daySchedule.mustBath ? "退所前日入浴（ドラッグで移動）" : "入浴予定（クリックで削除/ドラッグで移動）"}>🔴</span>
                                           ) : (
                                             <button
@@ -6104,7 +6104,7 @@
                                                   database.ref('data/' + STORAGE_KEY_USERS).set(newUsers);
                                                 }
                                               }}
-                                              className="text-2xl cursor-pointer hover:opacity-80 drop-shadow-md hover:bg-red-100 rounded" 
+                                            className="text-base cursor-pointer hover:opacity-80 drop-shadow-md hover:bg-red-100 rounded" 
                                               title="リネン交換（クリックで削除/ドラッグで移動）">🔵</span>
                                           ) : (
                                             <button
