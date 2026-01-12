@@ -160,30 +160,20 @@
         padding: 2px !important;
       }
       
-      /* フッター（tfoot）の圧縮 */
-      tfoot tr {
-        height: 14px !important;
-      }
-
-      tfoot td, tfoot th {
-        height: 14px !important;
-        min-height: 14px !important;
-        padding: 0 !important;
-        font-size: 6pt !important;
-        line-height: 14px !important;
-        border-top-width: 1px !important;
-        border-bottom-width: 1px !important;
-      }
-
-      /* フッター内の大きな文字クラスを印刷用に縮小 */
-      tfoot .text-xl, tfoot .text-2xl, tfoot .text-3xl {
-        font-size: 7pt !important;
-        line-height: 1 !important;
-      }
-
-      /* フッター内のアイコンやボタン、入力欄があれば非表示または極小化 */
-      tfoot button, tfoot .memo-input, tfoot input {
+      /* 【最優先】tfoot完全非表示 - 他のどのルールよりも優先 */
+      tfoot,
+      tfoot tr,
+      tfoot td,
+      tfoot th,
+      table tfoot,
+      .print-hide-footer {
         display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        max-height: 0 !important;
+        overflow: hidden !important;
+        position: absolute !important;
+        left: -9999px !important;
       }
       
       /* ページ分割許可 */
@@ -6128,7 +6118,7 @@
                     </tr>
                   ))}
                 </tbody>
-                <tfoot>
+                <tfoot className="print-hide-footer">
                   {/* =========================================
                       1. 本館実績数（黄色い行）
                      ========================================= */}
