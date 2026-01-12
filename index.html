@@ -160,20 +160,11 @@
         padding: 2px !important;
       }
       
-      /* 【最優先】tfoot完全非表示 - 他のどのルールよりも優先 */
-      tfoot,
-      tfoot tr,
-      tfoot td,
-      tfoot th,
-      table tfoot,
-      .print-hide-footer {
-        display: none !important;
-        visibility: hidden !important;
-        height: 0 !important;
-        max-height: 0 !important;
-        overflow: hidden !important;
-        position: absolute !important;
-        left: -9999px !important;
+      /* tfoot行の印刷用スタイル（シンプル） */
+      tfoot td {
+        padding: 2px !important;
+        font-size: 8pt !important;
+        height: auto !important;
       }
       
       /* ページ分割許可 */
@@ -928,6 +919,7 @@
       displayEndDate, setDisplayEndDate,
       useCustomRange, setUseCustomRange,
       lastBackup, exportData, importData,
+      footerPrintSettings, setFooterPrintSettings,
       recalculateAllData, recalculateAllSchedules,
       setShowSettings, setShowLogoutConfirm,
       undo, canUndo,
@@ -1047,7 +1039,61 @@
                 </div>
               </div>
             </div>
-            <div className="flex gap-2 items-center flex-wrap justify-end">
+            <div className="flex flex-col items-end gap-2">
+              {/* 印刷設定パネル */}
+              <div className="bg-gray-50 border border-gray-300 rounded-lg p-3">
+                <div className="text-sm font-bold text-gray-700 mb-2">📋 印刷時のフッター表示設定</div>
+                <div className="flex flex-wrap gap-3">
+                  <label className="flex items-center gap-1 text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={footerPrintSettings.showResult}
+                      onChange={(e) => setFooterPrintSettings(prev => ({...prev, showResult: e.target.checked}))}
+                      className="w-4 h-4"
+                    />
+                    <span className="px-2 py-0.5 bg-yellow-200 rounded text-xs">本館実績数</span>
+                  </label>
+                  <label className="flex items-center gap-1 text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={footerPrintSettings.showTempStorage}
+                      onChange={(e) => setFooterPrintSettings(prev => ({...prev, showTempStorage: e.target.checked}))}
+                      className="w-4 h-4"
+                    />
+                    <span className="px-2 py-0.5 bg-orange-200 rounded text-xs">一時保管</span>
+                  </label>
+                  <label className="flex items-center gap-1 text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={footerPrintSettings.showKushoRooms}
+                      onChange={(e) => setFooterPrintSettings(prev => ({...prev, showKushoRooms: e.target.checked}))}
+                      className="w-4 h-4"
+                    />
+                    <span className="px-2 py-0.5 bg-purple-200 rounded text-xs">空床利用部屋</span>
+                  </label>
+                  <label className="flex items-center gap-1 text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={footerPrintSettings.showKushoResult}
+                      onChange={(e) => setFooterPrintSettings(prev => ({...prev, showKushoResult: e.target.checked}))}
+                      className="w-4 h-4"
+                    />
+                    <span className="px-2 py-0.5 bg-purple-200 rounded text-xs">空床実績</span>
+                  </label>
+                  <label className="flex items-center gap-1 text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={footerPrintSettings.showTotalResult}
+                      onChange={(e) => setFooterPrintSettings(prev => ({...prev, showTotalResult: e.target.checked}))}
+                      className="w-4 h-4"
+                    />
+                    <span className="px-2 py-0.5 bg-green-200 rounded text-xs">合計実績</span>
+                  </label>
+                </div>
+                <div className="text-xs text-gray-500 mt-2">※ チェックを外した行は印刷時に表示されません</div>
+              </div>
+
+              <div className="flex gap-2 items-center flex-wrap justify-end">
               <button 
                 onClick={onAddSticky}
                 className="flex items-center gap-1 bg-yellow-400 hover:bg-yellow-500 text-yellow-900 px-3 py-2 rounded font-bold shadow transition-colors text-sm border border-yellow-500"
@@ -1159,6 +1205,7 @@
               >
                 <LogOut size={16} />
               </button>
+            </div>
             </div>
           </header>
           )}
@@ -1761,6 +1808,15 @@
       const [showArchivedModal, setShowArchivedModal] = useState(false); // 非表示リストモーダル
       const [archiveStats, setArchiveStats] = useState(null);
       const tableContainerRef = React.useRef(null);
+
+      // 印刷時のフッター行表示設定
+      const [footerPrintSettings, setFooterPrintSettings] = useState({
+        showResult: true,        // 本館実績数（黄色）- デフォルト表示
+        showTempStorage: false,  // 一時保管①②（オレンジ）- デフォルト非表示
+        showKushoRooms: false,   // 空床利用部屋（紫）- デフォルト非表示
+        showKushoResult: false,  // 空床実績（紫）- デフォルト非表示
+        showTotalResult: false   // 合計実績（緑）- デフォルト非表示
+      });
       
       // 印刷モード state
       const [printMode, setPrintMode] = useState(null); // 'main' | 'empty' | null
@@ -4042,6 +4098,8 @@
             lastBackup={lastBackup}
             exportData={exportData}
             importData={importData}
+            footerPrintSettings={footerPrintSettings}
+            setFooterPrintSettings={setFooterPrintSettings}
             recalculateAllData={recalculateAllData}
             recalculateAllSchedules={recalculateAllSchedules}
             setShowSettings={setShowSettings}
@@ -6118,10 +6176,11 @@
                     </tr>
                   ))}
                 </tbody>
-                <tfoot className="print-hide-footer">
+                <tfoot>
                   {/* =========================================
                       1. 本館実績数（黄色い行）
                      ========================================= */}
+                  {footerPrintSettings.showResult && (
                   <tr className={`bg-yellow-100 ${printMode === 'empty' ? 'print-hidden' : ''}`}>
                     <td className="p-2 border-2 border-gray-400 bg-yellow-200 font-bold text-xl text-gray-800 sticky left-0 z-30 text-center whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
                       実績数
@@ -6173,11 +6232,12 @@
                       })()}
                     </td>
                   </tr>
+                  )}
 
                   {/* =========================================
                       1.5. 一時保管エリア（オレンジ）
                      ========================================= */}
-                  {[
+                  {footerPrintSettings.showTempStorage && [
                     { id: TEMP_ROOM_1_ID, name: '一時保管①' },
                     { id: TEMP_ROOM_2_ID, name: '一時保管②' }
                   ].map((room) => (
@@ -6345,7 +6405,7 @@
                   {/* =========================================
                       4. 空床エリア（紫）
                      ========================================= */}
-                  {currentMonthTempRooms.map((tempRoom, index) => (
+                  {footerPrintSettings.showKushoRooms && currentMonthTempRooms.map((tempRoom, index) => (
                     <tr key={tempRoom.id} className={`bg-purple-50 transition-colors ${dragTempRoomId === tempRoom.id ? 'opacity-50' : ''} ${printMode === 'main' ? 'print-hidden' : ''}`}>
                       <td 
                         className={`p-2 border-2 border-gray-400 font-bold text-sm text-center align-middle sticky left-0 z-30 cursor-move
@@ -6484,6 +6544,7 @@
                   {/* =========================================
                       5. 空床実績
                      ========================================= */}
+                  {footerPrintSettings.showKushoResult && (
                   <tr className={`bg-purple-100 ${printMode === 'main' ? 'print-hidden' : ''}`}>
                     <td className="p-2 border-2 border-gray-400 bg-purple-200 font-bold text-sm text-gray-800 sticky left-0 z-30 text-center">
                       空床実績
@@ -6505,10 +6566,12 @@
                     })}
                     <td className="border-2 border-gray-400 bg-purple-200 text-center"></td>
                   </tr>
+                  )}
 
                   {/* =========================================
                       6. 合計実績（緑：本館＋空床）
                      ========================================= */}
+                  {footerPrintSettings.showTotalResult && (
                   <tr className={`bg-green-100 ${printMode === 'main' ? 'print-hidden' : ''}`}>
                     <td className="p-2 border-2 border-gray-400 bg-green-300 font-bold text-xl text-gray-800 sticky left-0 z-30 text-center">
                       合計実績
@@ -6563,6 +6626,7 @@
                       })()}
                     </td>
                   </tr>
+                  )}
                 </tfoot>
               </table>
               </div>
