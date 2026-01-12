@@ -6181,7 +6181,7 @@
                       1. 本館実績数（黄色い行）
                      ========================================= */}
                   {footerPrintSettings.showResult && (
-                  <tr className={`bg-yellow-100 ${printMode === 'empty' ? 'print-hidden' : ''}`}>
+                  <tr className={`bg-yellow-100 print-show-row ${printMode === 'empty' ? 'print-hidden' : ''}`}>
                     <td className="p-2 border-2 border-gray-400 bg-yellow-200 font-bold text-xl text-gray-800 sticky left-0 z-30 text-center whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
                       実績数
                     </td>
@@ -6241,7 +6241,7 @@
                     { id: TEMP_ROOM_1_ID, name: '一時保管①' },
                     { id: TEMP_ROOM_2_ID, name: '一時保管②' }
                   ].map((room) => (
-                    <tr key={room.id} id={`row-${room.id}`} className={`bg-orange-50 ${printMode === 'main' ? 'print-hidden' : ''}`}>
+                    <tr key={room.id} id={`row-${room.id}`} className={`bg-orange-50 print-hide-row ${printMode === 'main' ? 'print-hidden' : ''}`}>
                       <td className="p-2 border-2 border-gray-400 bg-orange-200 font-bold text-sm text-center align-middle sticky left-0 z-30">
                         <div className="flex flex-col items-center gap-1">
                           <span>{room.name}</span>
@@ -6406,7 +6406,7 @@
                       4. 空床エリア（紫）
                      ========================================= */}
                   {footerPrintSettings.showKushoRooms && currentMonthTempRooms.map((tempRoom, index) => (
-                    <tr key={tempRoom.id} className={`bg-purple-50 transition-colors ${dragTempRoomId === tempRoom.id ? 'opacity-50' : ''} ${printMode === 'main' ? 'print-hidden' : ''}`}>
+                    <tr key={tempRoom.id} className={`bg-purple-50 transition-colors print-hide-row ${dragTempRoomId === tempRoom.id ? 'opacity-50' : ''} ${printMode === 'main' ? 'print-hidden' : ''}`}>
                       <td 
                         className={`p-2 border-2 border-gray-400 font-bold text-sm text-center align-middle sticky left-0 z-30 cursor-move
                           ${dragTempRoomId === tempRoom.id ? 'bg-purple-300' : 'bg-purple-100'}
@@ -6545,7 +6545,7 @@
                       5. 空床実績
                      ========================================= */}
                   {footerPrintSettings.showKushoResult && (
-                  <tr className={`bg-purple-100 ${printMode === 'main' ? 'print-hidden' : ''}`}>
+                  <tr className={`bg-purple-100 print-hide-row ${printMode === 'main' ? 'print-hidden' : ''}`}>
                     <td className="p-2 border-2 border-gray-400 bg-purple-200 font-bold text-sm text-gray-800 sticky left-0 z-30 text-center">
                       空床実績
                     </td>
@@ -6572,7 +6572,7 @@
                       6. 合計実績（緑：本館＋空床）
                      ========================================= */}
                   {footerPrintSettings.showTotalResult && (
-                  <tr className={`bg-green-100 ${printMode === 'main' ? 'print-hidden' : ''}`}>
+                  <tr className={`bg-green-100 print-hide-row ${printMode === 'main' ? 'print-hidden' : ''}`}>
                     <td className="p-2 border-2 border-gray-400 bg-green-300 font-bold text-xl text-gray-800 sticky left-0 z-30 text-center">
                       合計実績
                     </td>
